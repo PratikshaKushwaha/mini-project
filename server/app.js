@@ -13,6 +13,7 @@ import paymentRoutes from "./routes/payment.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import disputeRoutes from "./routes/dispute.routes.js";
+import postRoutes from "./routes/post.routes.js";
 import rateLimit from "express-rate-limit";
 
 const app = express();
@@ -49,6 +50,7 @@ app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/disputes", disputeRoutes);
+app.use("/api/v1/posts", postRoutes);
 
 // General Error Handler
 app.use((err, req, res, next) => {

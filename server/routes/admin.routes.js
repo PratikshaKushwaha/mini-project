@@ -1,5 +1,5 @@
 import express from "express";
-import { getSystemStats, getAllUsers, deleteUser } from "../controllers/admin.controller.js";
+import { getSystemStats, getAllUsers, deleteUser, updateUserRole } from "../controllers/admin.controller.js";
 import { verifyJWT, verifyRole } from "../middleware/auth.middleware.js";
 
 const router = express.Router();

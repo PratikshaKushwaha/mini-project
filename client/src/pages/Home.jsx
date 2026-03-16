@@ -1,13 +1,68 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Heart, FileText, CheckCircle, Clock } from 'lucide-react';
+import { ChevronRight, Heart, Pen, Monitor, Sparkles, Star, Scissors, Camera, Layers, Palette } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
+
+// SVG icon map for categories
+const CATEGORY_ICONS = {
+    'Illustration': Palette,
+    'Digital Art':  Monitor,
+    'Mehendi':      Sparkles,
+    'Makeup Art':   Star,
+    'Crochet':      Layers,
+    'Crafts':       Scissors,
+    'Photography':  Camera,
+    'default':      Pen,
+};
+
+// ── Static fallback data shown when the DB is empty ──────────────────────────
+const DEFAULT_CATEGORIES = [
+    { _id: 'dc-1', name: 'Illustration', bg: 'bg-cat-cream' },
+    { _id: 'dc-2', name: 'Digital Art',  bg: 'bg-cat-tan' },
+    { _id: 'dc-3', name: 'Mehendi',      bg: 'bg-warm-stone' },
+    { _id: 'dc-4', name: 'Makeup Art',   bg: 'bg-muted-taupe', text: 'text-white' },
+    { _id: 'dc-5', name: 'Crochet',      bg: 'bg-bg-cream' },
+    { _id: 'dc-6', name: 'Crafts',       bg: 'bg-cat-cream' },
+    { _id: 'dc-7', name: 'Photography',  bg: 'bg-cat-dark', text: 'text-white' },
+];
+
+const DEFAULT_ARTISTS = [
+    {
+        _id: 'da-1',
+        name: 'Priya Sharma',
+        specialty: 'Illustration & Digital Art',
+        rating: 4.9,
+        image: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&h=400&fit=crop&q=80',
+    },
+    {
+        _id: 'da-2',
+        name: 'Ananya Verma',
+        specialty: 'Mehendi & Bridal Art',
+        rating: 5.0,
+        image: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=400&h=400&fit=crop&q=80',
+    },
+    {
+        _id: 'da-3',
+        name: 'Riya Patel',
+        specialty: 'Crochet & Handcraft',
+        rating: 4.8,
+        image: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=400&h=400&fit=crop&q=80',
+    },
+    {
+        _id: 'da-4',
+        name: 'Sneha Joshi',
+        specialty: 'Photography & Portraits',
+        rating: 4.9,
+        image: 'https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?w=400&h=400&fit=crop&q=80',
+    },
+];
+// ─────────────────────────────────────────────────────────────────────────────
 
 const Home = () => {
     const { user } = useSelector(state => state.auth);
     const [dbCategories, setDbCategories] = useState([]);
-    const [dbArtists, setDbArtists] = useState([]);
+    const [dbArtists, setDbArtists]       = useState([]);
     const [loadingArtists, setLoadingArtists] = useState(true);
 
     useEffect(() => {
@@ -15,12 +70,12 @@ const Home = () => {
             try {
                 const [catRes, artistRes] = await Promise.all([
                     api.get('/categories'),
-                    api.get('/artists?limit=4') // Fetch top 4 for homepage
+                    api.get('/artists?limit=4'),
                 ]);
                 setDbCategories(catRes.data.data);
                 setDbArtists(artistRes.data.data);
             } catch (err) {
-                console.error("Failed to load homepage data", err);
+                console.error('Failed to load homepage data', err);
             } finally {
                 setLoadingArtists(false);
             }
@@ -28,19 +83,21 @@ const Home = () => {
         fetchData();
     }, []);
 
-    // Visual map for UI
-    const categoryStyles = {
-        'Illustration': { icon: '🎨', bg: 'bg-cat-cream' },
-        'Digital Art': { icon: '💻', bg: 'bg-cat-tan' },
-        'Mehendi': { icon: '🌿', bg: 'bg-warm-stone' },
-        'Makeup Art': { icon: '💄', bg: 'bg-muted-taupe', text: 'text-white' },
-        'Crochet': { icon: '🧶', bg: 'bg-bg-cream' },
-        'Crafts': { icon: '✂️', bg: 'bg-cat-cream' },
-        'Photography': { icon: '📷', bg: 'bg-cat-dark', text: 'text-white' },
-        // Fallback
-        'default': { icon: '✨', bg: 'bg-stone-200' }
-    };
+    // Resolved data: use DB when available, fall back to defaults
+    const categories = dbCategories.length > 0 ? dbCategories : DEFAULT_CATEGORIES;
+    const artists    = dbArtists.length    > 0 ? dbArtists    : null; // null = show defaults
 
+    // Background map for DB-sourced categories (icons come from CATEGORY_ICONS)
+    const categoryBg = {
+        'Illustration': { bg: 'bg-cat-cream' },
+        'Digital Art':  { bg: 'bg-cat-tan' },
+        'Mehendi':      { bg: 'bg-warm-stone' },
+        'Makeup Art':   { bg: 'bg-muted-taupe', text: 'text-white' },
+        'Crochet':      { bg: 'bg-bg-cream' },
+        'Crafts':       { bg: 'bg-cat-cream' },
+        'Photography':  { bg: 'bg-cat-dark', text: 'text-white' },
+        'default':      { bg: 'bg-stone-200' },
+    };
 
 
     return (
@@ -72,17 +129,6 @@ const Home = () => {
                                     </button>
                                 </Link>
                             </div>
-
-                            <div className="flex items-center gap-4">
-                                <div className="text-sm font-medium text-stone-500">Trusted by:</div>
-                                <div className="flex -space-x-2">
-                                    <img className="w-8 h-8 rounded-full border-2 border-bg-cream" src="https://i.pravatar.cc/100?img=1" alt="Avatar"/>
-                                    <img className="w-8 h-8 rounded-full border-2 border-bg-cream" src="https://i.pravatar.cc/100?img=2" alt="Avatar"/>
-                                    <img className="w-8 h-8 rounded-full border-2 border-bg-cream" src="https://i.pravatar.cc/100?img=3" alt="Avatar"/>
-                                    <img className="w-8 h-8 rounded-full border-2 border-bg-cream" src="https://i.pravatar.cc/100?img=4" alt="Avatar"/>
-                                </div>
-                                <div className="text-sm font-bold text-text-brown">5,000+ Creators</div>
-                            </div>
                         </div>
 
                         {/* Hero Collage */}
@@ -92,7 +138,7 @@ const Home = () => {
                             
                             {/* Central Portrait */}
                             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-72 z-20 shadow-2xl rounded-3xl overflow-hidden border-8 border-bg-cream">
-                                <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=500&fit=crop" className="w-full h-full object-cover" alt="Portrait Art" />
+                                <img src="https://images.unsplash.com/photo-1593382067395-ace3045a1547?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8YXJ0aXN0fGVufDB8fDB8fHww" className="w-full h-full object-cover" alt="Portrait Art" />
                             </div>
 
                             {/* Top Left Canvas */}
@@ -102,17 +148,17 @@ const Home = () => {
 
                             {/* Top Right Hands/Mehendi */}
                             <div className="absolute top-4 right-4 w-56 h-48 z-10 shadow-lg rounded-3xl overflow-hidden">
-                                <img src="https://images.unsplash.com/photo-1589330694653-efa6477d85ea?w=400&h=300&fit=crop" className="w-full h-full object-cover" alt="Mehendi" />
+                                <img src="https://plus.unsplash.com/premium_photo-1661896237419-6e232b54eefc?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8bWVoZW5kaXxlbnwwfHwwfHx8MA%3D%3D" className="w-full h-full object-cover" alt="Mehendi" />
                             </div>
 
                             {/* Bottom Left Hands Painting */}
                             <div className="absolute bottom-10 left-4 w-56 h-40 z-30 shadow-xl rounded-3xl overflow-hidden">
-                                <img src="https://images.unsplash.com/photo-1459908676235-46f55eeb557e?w=400&h=300&fit=crop" className="w-full h-full object-cover" alt="Hands" />
+                                <img src="https://images.unsplash.com/photo-1579965342575-16428a7c8881?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8cGFpbnRpbmd8ZW58MHx8MHx8fDA%3D" className="w-full h-full object-cover" alt="Painting" />
                             </div>
 
                             {/* Bottom Right Craft */}
                             <div className="absolute bottom-20 right-10 w-48 h-48 z-10 shadow-lg rounded-3xl overflow-hidden">
-                                <img src="https://images.unsplash.com/photo-1584448554228-5527a42bead2?w=400&h=400&fit=crop" className="w-full h-full object-cover" alt="Craft" />
+                                <img src="https://images.unsplash.com/photo-1680796681732-ed0d5a7c3d74?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8b3JnYW1pfGVufDB8fDB8fHww" className="w-full h-full object-cover" alt="Craft" />
                             </div>
                         </div>
                     </div>
@@ -129,41 +175,46 @@ const Home = () => {
                                 View All <ChevronRight className="w-4 h-4 ml-1" />
                             </Link>
                         </div>
-                        {dbCategories.length > 0 ? (
-                            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-                                {dbCategories.map((cat, idx) => {
-                                    const style = categoryStyles[cat.name] || categoryStyles['default'];
-                                    return (
-                                        <div key={cat._id} className={`min-w-[120px] p-6 rounded-[2rem] flex flex-col items-center justify-center gap-3 cursor-pointer shadow-sm hover:scale-105 transition-transform ${style.bg} ${style.text || 'text-text-brown'}`}>
-                                            <div className="text-3xl">{style.icon}</div>
-                                            <span className="text-sm font-semibold whitespace-nowrap">{cat.name}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="bg-white/50 border border-dashed border-stone-300 rounded-[2rem] p-8 text-center text-stone-500 italic">
-                                No categories found. Highlighting local craftsmanship soon!
-                            </div>
-                        )}
+                        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+                            {categories.map((cat) => {
+                                const style = cat.bg
+                                    ? { bg: cat.bg, text: cat.text }
+                                    : (categoryBg[cat.name] || categoryBg['default']);
+                                const IconComponent = CATEGORY_ICONS[cat.name] || CATEGORY_ICONS['default'];
+                                return (
+                                    <Link
+                                        key={cat._id}
+                                        to={`/artists?category=${encodeURIComponent(cat.name)}`}
+                                        className={`min-w-[130px] p-6 rounded-[2rem] flex flex-col items-center justify-center gap-3 shadow-sm hover:scale-105 transition-transform ${style.bg} ${style.text || 'text-text-brown'}`}
+                                    >
+                                        <IconComponent className="w-7 h-7" strokeWidth={1.5} />
+                                        <span className="text-sm font-semibold whitespace-nowrap">{cat.name}</span>
+                                    </Link>
+                                );
+                            })}
+                        </div>
                     </section>
 
                     {/* Featured Artists */}
                     <section>
                         <h2 className="text-2xl font-semibold text-text-brown mb-6">Featured Artists</h2>
+
+                        {/* Loading skeletons */}
                         {loadingArtists ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
                                 {[1,2,3,4].map(n => <div key={n} className="h-64 bg-stone-100 animate-pulse rounded-3xl" />)}
                             </div>
-                        ) : dbArtists.length > 0 ? (
+
+                        /* Real DB artists */
+                        ) : artists ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-                                {dbArtists.map((artist) => (
+                                {artists.map((artist) => (
                                     <Link key={artist._id} to={`/artists/${artist._id}`} className="bg-white rounded-3xl p-4 shadow-sm group cursor-pointer hover:shadow-md transition">
                                         <div className="relative h-48 mb-4 rounded-2xl overflow-hidden">
-                                            <img 
-                                                src={artist.profileImage || `https://api.dicebear.com/7.x/notionists/svg?seed=${artist.artistId?.email}`} 
-                                                alt={artist.artistId?.email} 
-                                                className="w-full h-full object-cover group-hover:scale-105 transition duration-500" 
+                                            <img
+                                                src={artist.profileImage || `https://api.dicebear.com/7.x/notionists/svg?seed=${artist.artistId?.email}`}
+                                                alt={artist.artistId?.email}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                                             />
                                             <button className="absolute top-3 right-3 text-white bg-black/20 p-2 rounded-full hover:bg-black/40 backdrop-blur-sm transition">
                                                 <Heart className="w-4 h-4" />
@@ -175,7 +226,7 @@ const Home = () => {
                                                     {artist.artistId?.email?.split('@')[0]}
                                                 </h3>
                                                 <div className="flex items-center text-sm font-bold text-text-brown shrink-0">
-                                                    <span className="text-orange-400 mr-1">★</span> 
+                                                    <span className="text-orange-400 mr-1">★</span>
                                                     {artist.avgRating ? artist.avgRating.toFixed(1) : '5.0'}
                                                 </div>
                                             </div>
@@ -184,9 +235,39 @@ const Home = () => {
                                     </Link>
                                 ))}
                             </div>
+
+                        /* Default placeholder artists */
                         ) : (
-                            <div className="bg-white/50 border border-dashed border-stone-300 rounded-3xl p-12 text-center text-stone-500 italic">
-                                Our community of artists is growing. Check back soon for new talent!
+                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+                                {DEFAULT_ARTISTS.map((artist) => (
+                                    <Link key={artist._id} to="/artists" className="bg-white rounded-3xl p-4 shadow-sm group cursor-pointer hover:shadow-md transition">
+                                        <div className="relative h-48 mb-4 rounded-2xl overflow-hidden">
+                                            <img
+                                                src={artist.image}
+                                                alt={artist.name}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                                            />
+                                            <button className="absolute top-3 right-3 text-white bg-black/20 p-2 rounded-full hover:bg-black/40 backdrop-blur-sm transition">
+                                                <Heart className="w-4 h-4" />
+                                            </button>
+                                            <span className="absolute bottom-3 left-3 bg-white/80 backdrop-blur-sm text-xs font-semibold text-text-brown px-2 py-1 rounded-full">
+                                                ✦ Featured
+                                            </span>
+                                        </div>
+                                        <div className="px-2 pb-2">
+                                            <div className="flex justify-between items-start mb-1">
+                                                <h3 className="font-bold text-text-brown text-lg truncate flex-1 mr-2">
+                                                    {artist.name}
+                                                </h3>
+                                                <div className="flex items-center text-sm font-bold text-text-brown shrink-0">
+                                                    <span className="text-orange-400 mr-1">★</span>
+                                                    {artist.rating.toFixed(1)}
+                                                </div>
+                                            </div>
+                                            <p className="text-stone-500 text-sm truncate">{artist.specialty}</p>
+                                        </div>
+                                    </Link>
+                                ))}
                             </div>
                         )}
                     </section>
