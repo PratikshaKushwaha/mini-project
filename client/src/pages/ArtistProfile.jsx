@@ -1,0 +1,209 @@
+import React, { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import api from '../services/api';
+import { Globe, Instagram, Twitter, MapPin } from 'lucide-react';
+import Button from '../components/Button';
+import { Helmet } from 'react-helmet-async';
+
+const ArtistProfile = () => {
+    const { id } = useParams();
+    const [profile, setProfile] = useState(null);
+    const [portfolio, setPortfolio] = useState([]);
+    const [reviewState, setReviewState] = useState({ reviews: [], stats: { avgRating: 0, totalReviews: 0 } });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchArtistData = async () => {
+            try {
+                // Fetch profile
+                const profileRes = await api.get(`/artists/${id}`);
+                setProfile(profileRes.data.data);
+
+                // Fetch portfolio/artworks
+                const portfolioRes = await api.get(`/portfolio/artist/${id}`);
+                setPortfolio(portfolioRes.data.data);
+
+                // Fetch reviews
+                const reviewsRes = await api.get(`/reviews/artist/${id}`);
+                setReviewState(reviewsRes.data.data);
+
+            } catch (error) {
+                console.error("Failed to fetch artist profile:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchArtistData();
+    }, [id]);
+
+    if (loading) {
+        return <div className="min-h-screen pt-24 text-center text-muted-taupe">Loading Artist Profile...</div>;
+    }
+
+    if (!profile) {
+        return <div className="min-h-screen pt-24 text-center text-red-500">Artist not found.</div>;
+    }
+
+    return (
+        <div className="bg-bg-cream min-h-screen pb-20">
+            <Helmet>
+                <title>{`${profile.artistId?.email?.split('@')[0] || 'Artist'} | ArtisanConnect`}</title>
+                <meta name="description" content={profile.bio || `Check out the portfolio of ${profile.artistId?.email?.split('@')[0]} on ArtisanConnect.`} />
+                <meta property="og:title" content={`${profile.artistId?.email?.split('@')[0]} - Artist Portfolio`} />
+                <meta property="og:description" content={profile.bio || "Hire this artist for your next creative project."} />
+                <meta property="og:image" content={profile.profileImage || `https://api.dicebear.com/7.x/notionists/svg?seed=${profile.artistId?.email}`} />
+                <meta property="og:type" content="profile" />
+                <meta name="twitter:card" content="summary_large_image" />
+            </Helmet>
+
+            {/* Header / Cover Area */}
+            <div className="bg-stone-200 h-64 w-full object-cover relative pattern-dots pattern-stone-300 pattern-bg-stone-100 pattern-size-4 pattern-opacity-40">
+                 {/* This could be a cover photo in the future */}
+            </div>
+
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 relative z-10">
+                <div className="bg-white rounded-3xl shadow-xl p-8 mb-12">
+                    <div className="flex flex-col md:flex-row gap-8 items-start">
+                        {/* Avatar */}
+                        <div className="w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-cat-tan shrink-0">
+                            <img 
+                                src={profile.profileImage || `https://api.dicebear.com/7.x/notionists/svg?seed=${profile.artistId?.email}`} 
+                                alt="Profile" 
+                                className="w-full h-full object-cover" 
+                            />
+                        </div>
+
+                        {/* Info Header */}
+                        <div className="flex-1 mt-4 md:mt-0">
+                            <h1 className="text-4xl font-playfair font-bold text-text-brown mb-2">
+                                {profile.artistId?.email?.split('@')[0] || 'Artist'}
+                            </h1>
+                            
+                            <div className="flex items-center text-stone-500 mb-4 gap-4">
+                                {profile.location && (
+                                    <div className="flex items-center gap-1">
+                                        <MapPin className="w-4 h-4" /> <span>{profile.location}</span>
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-1 text-orange-400 font-bold">
+                                    ★ {reviewState.stats.avgRating?.toFixed(1) || '0.0'} <span className="text-stone-400 font-normal">({reviewState.stats.totalReviews || 0} reviews)</span>
+                                </div>
+                            </div>
+
+                            <p className="text-lg text-stone-700 leading-relaxed mb-6 max-w-2xl">
+                                {profile.bio || "No bio provided yet."}
+                            </p>
+
+                            {/* Tags */}
+                            <div className="flex flex-wrap gap-2 mb-6">
+                                {profile.categories?.map((cat, idx) => (
+                                    <span key={idx} className="bg-cat-cream border border-stone-200 text-text-brown px-3 py-1 rounded-full text-sm font-medium">
+                                        {cat}
+                                    </span>
+                                ))}
+                            </div>
+
+                            {/* Links */}
+                            <div className="flex gap-4">
+                                {profile.website && (
+                                    <a href={profile.website} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-stone-600 hover:text-btn-brown transition">
+                                        <Globe className="w-5 h-5" /> <span>Website</span>
+                                    </a>
+                                )}
+                                {profile.instagram && (
+                                    <a href={`https://instagram.com/${profile.instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-stone-600 hover:text-btn-brown transition">
+                                        <Instagram className="w-5 h-5" /> <span>Instagram</span>
+                                    </a>
+                                )}
+                                {profile.twitter && (
+                                    <a href={`https://twitter.com/${profile.twitter.replace('@', '')}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-stone-600 hover:text-btn-brown transition">
+                                        <Twitter className="w-5 h-5" /> <span>Twitter</span>
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* CTA / Action */}
+                        <div className="flex flex-col gap-3 min-w-[200px]">
+                            <Button className="w-full">Request Commission</Button>
+                            <Button variant="outline" className="w-full">Message</Button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Artwork Showcase */}
+                <div>
+                    <h2 className="text-3xl font-playfair font-bold text-text-brown mb-8 flex items-center justify-between">
+                        Artwork Showcase
+                        <span className="text-sm font-medium text-stone-500 font-inter">{portfolio.length} posts</span>
+                    </h2>
+
+                    {portfolio.length === 0 ? (
+                        <div className="text-center py-20 bg-stone-50 rounded-2xl border border-stone-200">
+                            <p className="text-muted-taupe text-lg">No artwork posted yet.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {portfolio.map(item => (
+                                <div key={item._id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-stone-100 group">
+                                    <div className="h-64 relative overflow-hidden bg-stone-100">
+                                        <img 
+                                            src={item.mediaUrl} 
+                                            alt={item.title} 
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                        />
+                                        {item.price > 0 && (
+                                            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm text-text-brown font-bold px-3 py-1.5 rounded-lg shadow-sm">
+                                                ${item.price.toFixed(2)}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="p-5">
+                                        <h3 className="text-xl font-bold text-deep-cocoa mb-2">{item.title}</h3>
+                                        <p className="text-stone-600 text-sm line-clamp-2">{item.description}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Reviews Section */}
+                <div className="mt-20">
+                    <h2 className="text-3xl font-playfair font-bold text-text-brown mb-8 flex items-center justify-between">
+                        Reviews & Feedback
+                        <span className="text-sm font-medium text-stone-500 font-inter">{reviewState.reviews.length} reviews</span>
+                    </h2>
+
+                    {reviewState.reviews.length === 0 ? (
+                        <div className="text-center py-20 bg-stone-50 rounded-2xl border border-stone-200">
+                            <p className="text-muted-taupe text-lg">No reviews yet.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {reviewState.reviews.map(review => (
+                                <div key={review._id} className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex gap-4">
+                                    <div className="w-12 h-12 rounded-full overflow-hidden bg-stone-100 shrink-0 border border-stone-200">
+                                        <img src={review.clientId?.profileImage || `https://api.dicebear.com/7.x/notionists/svg?seed=${review.clientId?.email}`} alt="User" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-bold text-deep-cocoa">{review.clientId?.fullName || review.clientId?.email?.split('@')[0]}</span>
+                                            <span className="text-yellow-400 font-bold text-sm">★ {review.rating}</span>
+                                            <span className="text-xs text-stone-400">{new Date(review.createdAt).toLocaleDateString()}</span>
+                                        </div>
+                                        <p className="text-stone-600 text-sm leading-relaxed">{review.comment || (
+                                            <span className="italic opacity-50 text-xs">Rated this commission {review.rating} stars.</span>
+                                        )}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default ArtistProfile;

@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-inter text-text-brown bg-bg-cream;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-playfair;
+  }
+  h1 {
+    @apply text-5xl mb-6; /* ~48px */
+  }
+  h2 {
+    @apply text-4xl mb-4; /* ~36px */
+  }
+  h3 {
+    @apply text-3xl mb-3; /* ~28px */
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-deep-cocoa text-white px-6 py-2 rounded-md hover:bg-opacity-90 transition-colors;
+  }
+  .btn-secondary {
+    @apply bg-soft-peach text-deep-cocoa px-6 py-2 rounded-md hover:bg-opacity-90 transition-colors;
+  }
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-stone-200 overflow-hidden;
+  }
+  .input-field {
+    @apply w-full px-4 py-2 border border-stone-300 rounded-md focus:ring-2 focus:ring-muted-taupe focus:border-transparent outline-none;
+  }
+}
