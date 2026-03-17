@@ -22,7 +22,6 @@ const generateAccessAndRefreshTokens = async (userId, req) => {
         const refreshToken = user.generateRefreshToken();
         const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
 
-        // Create new session
         const session = await Session.create({
             userId: user._id,
             refreshTokenHash,
@@ -43,7 +42,7 @@ const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    maxAge: 15 * 24 * 60 * 60 * 1000 // 15 days
+    maxAge: 15 * 24 * 60 * 60 * 1000
 };
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -61,7 +60,10 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(409, "User with email or username already exists");
     }
 
-    const adminEmails = (process.env.ADMIN_EMAILS || process.env.GOOGLE_MAIL_USER || "").split(",").map(e => e.trim().toLowerCase());
+    const adminEmails = (process.env.ADMIN_EMAILS || process.env.GOOGLE_MAIL_USER || "")
+        .split(",")
+        .map(e => e.trim().toLowerCase());
+
     const isAdmin = adminEmails.includes(email.toLowerCase());
     const userRole = isAdmin ? 'admin' : (role || 'client');
 
@@ -70,7 +72,7 @@ const registerUser = asyncHandler(async (req, res) => {
         password,
         role: userRole,
         isSuperAdmin: isAdmin,
-        username,
+        username: username?.toLowerCase(), // ✅ FIXED
         fullName
     });
 
@@ -83,16 +85,13 @@ const registerUser = asyncHandler(async (req, res) => {
     const { accessToken, refreshToken, sessionId } = await generateAccessAndRefreshTokens(user._id, req);
     const createdUser = await User.findById(user._id).select("-password");
 
-    return res
-        .status(201)
+    return res.status(201)
         .cookie("refreshToken", refreshToken, cookieOptions)
-        .json(
-            new ApiResponse(201, {
-                user: createdUser,
-                accessToken,
-                sessionId
-            }, "User registered Successfully")
-        );
+        .json(new ApiResponse(201, {
+            user: createdUser,
+            accessToken,
+            sessionId
+        }, "User registered Successfully"));
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -146,7 +145,7 @@ const googleAuth = asyncHandler(async (req, res) => {
             audience: process.env.GOOGLE_CLIENT_ID
         });
 
-        const { email, sub: googleId } = ticket.getPayload();
+        const { email } = ticket.getPayload();
 
         let user = await User.findOne({ email });
 
@@ -157,7 +156,7 @@ const googleAuth = asyncHandler(async (req, res) => {
         if (!user) {
             user = await User.create({
                 email,
-                password: googleId,
+                password:crypto.randomBytes(16).toString("hex") ,
                 role: userRole,
                 isSuperAdmin: isAdmin
             });

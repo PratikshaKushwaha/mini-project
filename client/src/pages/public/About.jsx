@@ -29,26 +29,26 @@ const TEAM = [
     {
         name: 'Pratiksha Kushwaha',
         role: 'Founder & Developer',
-        image: 'https://i.pinimg.com/474x/38/13/82/381382f2a23d7b5d67c10c697ef525cb.jpg',
-        bio: 'Built ArtisanConnect to bridge the gap between talented local artists and clients who value handmade work.',
+        image: 'https://i.pinimg.com/736x/b9/2d/09/b92d09a2c99eca101ffda83a0c397620.jpg',
+        bio: 'Passionate full-stack developer specializing in MERN stack, focused on building scalable and user-centric web applications. Skilled in designing efficient backend systems and crafting seamless frontend experiences. Always exploring new technologies to solve real-world problems.',
     },
     {
         name: 'Srushti Kamble',
         role: 'Founder & Developer',
-        image: 'https://i.pinimg.com/736x/14/0b/07/140b0766c7ecb0e2ba140548b24585db.jpg',
-        bio: 'Built ArtisanConnect to bridge the gap between talented local artists and clients who value handmade work.',
+        image: 'https://i.pinimg.com/736x/67/2b/9b/672b9b3e94431371fe64450a37efc24c.jpg',
+        bio: 'Creative UI/UX designer and frontend developer with a strong eye for detail and aesthetics. Dedicated to creating intuitive, responsive, and visually engaging user interfaces. Combines design thinking with modern frontend technologies to deliver impactful digital experiences.',
     },
     {
         name: 'Madhura Lad',
         role: 'Founder & Developer',
-        image: 'https://i.pinimg.com/474x/c7/bf/13/c7bf13f920b0abd0d30e1aabf2d4fbf7.jpg',
-        bio: 'Built ArtisanConnect to bridge the gap between talented local artists and clients who value handmade work.',
+        image: 'https://i.pinimg.com/736x/a1/71/85/a17185a8ce8dfd135ace4c2dddca36c0.jpg',
+        bio: 'Enthusiastic problem solver with a strong foundation in data structures, algorithms, and data-driven development. Passionate about leveraging data to build intelligent solutions and improve application performance.',
     },
     {
         name: 'Srushti Lohar',
         role: 'Founder & Developer',
-        image: 'https://i.pinimg.com/736x/5c/65/c4/5c65c420cf559de9ab9b5a44bb0d8356.jpg',
-        bio: 'Built ArtisanConnect to bridge the gap between talented local artists and clients who value handmade work.',
+        image: 'https://i.pinimg.com/1200x/f4/85/e7/f485e79afcf6205c23acdf7b0609fc63.jpg',
+        bio: 'Backend developer with expertise in building robust APIs, database design, and server-side architecture. Focused on performance, security, and scalability. Enjoys optimizing systems and ensuring smooth communication between services.',
     },
 ];
 

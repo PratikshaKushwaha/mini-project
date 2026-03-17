@@ -1,11 +1,13 @@
 import axios from 'axios';
 
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
+  baseURL: BASE_URL,
   withCredentials: true,
 });
 
-// Request interceptor: Attach access token
+// Request interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
@@ -17,49 +19,56 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: Handle expired tokens
+// Response interceptor
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // If 401 and not already retrying
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // 🚫 Prevent retry loop
+    if (!originalRequest || originalRequest._retry) {
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 401) {
       originalRequest._retry = true;
 
       try {
-        // Attempt to refresh token
-                const refreshRes = await axios.post(
-                    `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/auth/refresh-token`,
-                    {},
-                    { withCredentials: true }
-                );
+        // ✅ Use SAME api instance
+        const refreshRes = await api.post('/auth/refresh-token');
 
-                const { accessToken } = refreshRes.data.data;
-                localStorage.setItem('accessToken', accessToken);
-                
-                // Update header and retry
-                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-                return api(originalRequest);
+        const { accessToken } = refreshRes.data.data;
+
+        localStorage.setItem('accessToken', accessToken);
+
+        // Retry original request
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        return api(originalRequest);
+
       } catch (refreshError) {
-        // If refresh fails, logout user
+        // ❌ Refresh failed → logout
         localStorage.removeItem('accessToken');
+
+        // Optional: cleaner navigation if using React Router
         window.location.href = '/login';
+
         return Promise.reject(refreshError);
       }
     }
-    
+
     console.error('API Error:', error.response?.data?.message || error.message);
     return Promise.reject(error);
   }
 );
 
+// ALL YOUR API FUNCTIONS (UNCHANGED BELOW)
+
 // Auth
 export const registerUser = (userData) => api.post('/auth/register', userData);
 export const loginUser = (credentials) => api.post('/auth/login', credentials);
 export const getCurrentUser = () => api.get('/auth/me');
+
 export const updateProfile = (data) => {
-    // Check if data is FormData to apply correct headers
     if (data instanceof FormData) {
         return api.put('/auth/me', data, {
             headers: { 'Content-Type': 'multipart/form-data' }
