@@ -58,7 +58,7 @@ const ArtistOrders = () => {
                             <div className="flex flex-col md:flex-row justify-between md:items-center mb-4 pb-4 border-b border-stone-100 gap-4">
                                 <div>
                                     <h3 className="text-lg font-bold">Order #{order._id.substring(order._id.length - 6).toUpperCase()}</h3>
-                                    <p className="text-sm text-stone-500">Service: {order.serviceId?.title || 'Unknown'}</p>
+                                    <p className="text-sm text-stone-500">Service: {order.title || 'Custom Request'}</p>
                                 </div>
                                 <div className="flex gap-4 items-center">
                                     <div className="text-right">
@@ -75,9 +75,9 @@ const ArtistOrders = () => {
                             </div>
                             
                             <div className="mb-6">
-                                <h4 className="text-sm font-bold text-deep-cocoa mb-2">Requirements:</h4>
+                                <h4 className="text-sm font-bold text-deep-cocoa mb-2">Description:</h4>
                                 <div className="bg-stone-50 p-4 rounded text-sm text-stone-700 whitespace-pre-wrap">
-                                    {order.requirements}
+                                    {order.description}
                                 </div>
                             </div>
 

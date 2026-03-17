@@ -58,7 +58,7 @@ const ClientOrders = () => {
                             {orders.map(order => (
                                 <tr key={order._id} className="hover:bg-stone-50/50 transition">
                                     <td className="p-4 border-b border-stone-100 font-mono text-xs">#{order._id.substring(order._id.length - 6).toUpperCase()}</td>
-                                    <td className="p-4 border-b border-stone-100 text-sm font-medium">{order.serviceId?.title || 'Unknown Service'}</td>
+                                    <td className="p-4 border-b border-stone-100 text-sm font-medium">{order.title || 'Custom Request'}</td>
                                     <td className="p-4 border-b border-stone-100 text-sm">{new Date(order.deadline).toLocaleDateString()}</td>
                                     <td className="p-4 border-b border-stone-100">
                                         <span className={`px-2 py-1 flex items-center justify-center w-24 text-center rounded text-xs font-bold border ${getStatusColor(order.status)} uppercase tracking-wider`}>

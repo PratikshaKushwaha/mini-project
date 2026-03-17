@@ -4,6 +4,9 @@ import api from '../services/api';
 import { Globe, Instagram, Twitter, MapPin } from 'lucide-react';
 import Button from '../components/Button';
 import { Helmet } from 'react-helmet-async';
+import RequestCommissionModal from '../components/RequestCommissionModal';
+import { useSelector } from 'react-redux';
+import toast from 'react-hot-toast';
 
 const ArtistProfile = () => {
     const { id } = useParams();
@@ -11,6 +14,8 @@ const ArtistProfile = () => {
     const [portfolio, setPortfolio] = useState([]);
     const [reviewState, setReviewState] = useState({ reviews: [], stats: { avgRating: 0, totalReviews: 0 } });
     const [loading, setLoading] = useState(true);
+    const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+    const { user } = useSelector(state => state.auth);
 
     useEffect(() => {
         const fetchArtistData = async () => {
@@ -125,8 +130,18 @@ const ArtistProfile = () => {
 
                         {/* CTA / Action */}
                         <div className="flex flex-col gap-3 min-w-[200px]">
-                            <Button className="w-full">Request Commission</Button>
-                            <Button variant="outline" className="w-full">Message</Button>
+                            <Button 
+                                className="w-full" 
+                                onClick={() => {
+                                    if (!user) {
+                                        toast.error("Please login to request a commission");
+                                        return;
+                                    }
+                                    setIsRequestModalOpen(true);
+                                }}
+                            >
+                                Request Commission
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -202,6 +217,13 @@ const ArtistProfile = () => {
                     )}
                 </div>
             </div>
+
+            <RequestCommissionModal 
+                isOpen={isRequestModalOpen} 
+                onClose={() => setIsRequestModalOpen(false)} 
+                artistId={id} 
+                artistName={profile.artistId?.email?.split('@')[0]} 
+            />
         </div>
     );
 };

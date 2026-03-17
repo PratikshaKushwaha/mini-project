@@ -32,7 +32,7 @@ const updateUserRole = asyncHandler(async (req, res) => {
     }
 
     // Only Super Admin can change roles to/from admin
-    if (req.user.email !== process.env.GOOGLE_MAIL_USER) {
+    if (!req.user.isSuperAdmin) {
         throw new ApiError(403, "Only the primary admin can manage other admins");
     }
 
@@ -42,7 +42,7 @@ const updateUserRole = asyncHandler(async (req, res) => {
     }
 
     // Protect Super Admin from role changes
-    if (targetUser.email === process.env.GOOGLE_MAIL_USER) {
+    if (targetUser.isSuperAdmin) {
         throw new ApiError(403, "Cannot change role of the primary admin");
     }
 
@@ -67,11 +67,11 @@ const deleteUser = asyncHandler(async (req, res) => {
     if (!targetUser) {
         throw new ApiError(404, "User not found");
     }
-    if (targetUser.email === process.env.GOOGLE_MAIL_USER) {
+    if (targetUser.isSuperAdmin) {
         throw new ApiError(403, "Cannot delete the primary admin");
     }
 
-    if (targetUser.role === 'admin' && req.user.email !== process.env.GOOGLE_MAIL_USER) {
+    if (targetUser.role === 'admin' && !req.user.isSuperAdmin) {
          throw new ApiError(403, "Only the primary admin can delete other admins");
     }
 

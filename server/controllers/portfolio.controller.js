@@ -2,12 +2,23 @@ import { PortfolioItem } from "../models/portfolioItem.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const addPortfolioItem = asyncHandler(async (req, res) => {
-    const { title, description, mediaUrl, categoryId, price } = req.body;
+    const { title, description, categoryId, price } = req.body;
+    let mediaUrl = req.body.mediaUrl;
+    
+    // Check if an image file was uploaded
+    if (req.file) {
+        const cloudinaryUpload = await uploadOnCloudinary(req.file.path);
+        if (!cloudinaryUpload) {
+             throw new ApiError(500, "Error uploading image to Cloudinary");
+        }
+        mediaUrl = cloudinaryUpload.url;
+    }
 
     if (!title || !mediaUrl) {
-        throw new ApiError(400, "Title and mediaUrl are required");
+        throw new ApiError(400, "Title and media file/URL are required");
     }
 
     // Determine the user from auth middleware
@@ -38,10 +49,14 @@ const getArtistPortfolio = asyncHandler(async (req, res) => {
 const deletePortfolioItem = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    const item = await PortfolioItem.findOne({ _id: id, artistId: req.user._id });
+    let item = await PortfolioItem.findById(id);
 
     if (!item) {
-        throw new ApiError(404, "Portfolio item not found or you are not authorized");
+        throw new ApiError(404, "Portfolio item not found");
+    }
+
+    if (item.artistId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+        throw new ApiError(403, "Not authorized to delete this item");
     }
 
     await PortfolioItem.findByIdAndDelete(id);
@@ -49,8 +64,39 @@ const deletePortfolioItem = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, {}, "Portfolio item deleted successfully"));
 });
 
+const updatePortfolioItem = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { title, description, categoryId, price } = req.body;
+    let mediaUrl = req.body.mediaUrl;
+
+    if (req.file) {
+        const cloudinaryUpload = await uploadOnCloudinary(req.file.path);
+        if (cloudinaryUpload) {
+             mediaUrl = cloudinaryUpload.url;
+        }
+    }
+
+    let item = await PortfolioItem.findById(id);
+
+    if (!item) {
+        throw new ApiError(404, "Portfolio item not found");
+    }
+
+    if (item.artistId.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Not authorized to update this item");
+    }
+
+    const updates = { title, description, categoryId, price };
+    if (mediaUrl) updates.mediaUrl = mediaUrl;
+
+    item = await PortfolioItem.findByIdAndUpdate(id, updates, { new: true });
+
+    return res.status(200).json(new ApiResponse(200, item, "Portfolio item updated successfully"));
+});
+
 export {
     addPortfolioItem,
     getArtistPortfolio,
-    deletePortfolioItem
+    deletePortfolioItem,
+    updatePortfolioItem
 };

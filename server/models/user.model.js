@@ -21,15 +21,12 @@ const userSchema = new Schema(
             enum: ['artist', 'client', 'admin'],
             default: 'client'
         },
-        resetPasswordExpires: {
-            type: Date
-        },
-        stripeAccountId: {
-            type: String
-        },
-        stripeOnboarded: {
+        isSuperAdmin: {
             type: Boolean,
             default: false
+        },
+        resetPasswordExpires: {
+            type: Date
         }
     },
     { timestamps: true }

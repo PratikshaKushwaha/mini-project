@@ -41,8 +41,8 @@ const generateAccessAndRefreshTokens = async (userId, req) => {
 const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 15 * 24 * 60 * 60 * 1000 // 15 days
 };
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -64,7 +64,8 @@ const registerUser = asyncHandler(async (req, res) => {
     const user = await User.create({
         email,
         password,
-        role: userRole
+        role: userRole,
+        isSuperAdmin: isAdmin
     });
 
     if (user.role === 'artist') {
@@ -127,7 +128,7 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 const googleAuth = asyncHandler(async (req, res) => {
-    const { token } = req.body;
+    const { token, role } = req.body;
     
     if (!token) {
         throw new ApiError(400, "Google token is required");
@@ -144,14 +145,21 @@ const googleAuth = asyncHandler(async (req, res) => {
         let user = await User.findOne({ email });
 
         const isAdmin = email === process.env.GOOGLE_MAIL_USER;
-        const userRole = isAdmin ? 'admin' : 'client';
+        const userRole = isAdmin ? 'admin' : (role || 'client');
 
         if (!user) {
             user = await User.create({
                 email,
                 password: googleId,
-                role: userRole
+                role: userRole,
+                isSuperAdmin: isAdmin
             });
+            
+            if (user.role === 'artist') {
+                await ArtistProfile.create({
+                    artistId: user._id
+                });
+            }
         }
 
         const { accessToken, refreshToken, sessionId } = await generateAccessAndRefreshTokens(user._id, req);

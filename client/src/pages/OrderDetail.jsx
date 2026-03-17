@@ -7,8 +7,8 @@ import {
     getOrderMessages, 
     sendMessage 
 } from '../services/api';
-import { Send, Clock, FileText, CheckCircle, AlertCircle, Landmark, Star, AlertTriangle } from 'lucide-react';
-import { createCheckoutSession, submitReview, raiseDispute } from '../services/api';
+import { Send, Clock, FileText, CheckCircle, AlertCircle, Star, AlertTriangle, List } from 'lucide-react';
+import { submitReview } from '../services/api';
 import ReviewModal from '../components/ReviewModal';
 import toast from 'react-hot-toast';
 
@@ -22,7 +22,6 @@ const OrderDetail = () => {
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
-    const [paying, setPaying] = useState(false);
     const [deliverableUrl, setDeliverableUrl] = useState("");
     const [deliverLoading, setDeliverLoading] = useState(false);
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -108,49 +107,13 @@ const OrderDetail = () => {
         }
     };
 
-    const handlePayment = async () => {
-        setPaying(true);
-        try {
-            await createCheckoutSession(id);
-            toast.success("Academic Payment Successful!");
-            // Refresh order immediately since mock backend updates status automatically
-            const orderRes = await getOrderById(id);
-            setOrder(orderRes.data.data);
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to initiate mock payment');
-        } finally {
-            setPaying(false);
-        }
-    };
-
-    const handleRaiseDispute = async () => {
-        const reason = prompt("Enter the reason for dispute (e.g. Quality Issue, Late Delivery):");
-        if (!reason) return;
-        const explanation = prompt("Please provide a detailed explanation of the issue:");
-        if (!explanation) return;
-
-        try {
-            await raiseDispute({
-                orderId: id,
-                reason,
-                explanation
-            });
-            toast.success("Dispute raised. An admin will review it.");
-            // Refresh
-            const orderRes = await getOrderById(id);
-            setOrder(orderRes.data.data);
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to raise dispute');
-        }
-    };
-
     const handleDeliver = async (e) => {
         e.preventDefault();
         if (!deliverableUrl) return;
         setDeliverLoading(true);
         try {
             // Updated to use the new deliverableFiles array in the status update call
-            await updateOrderStatus(id, 'Delivered', { deliverableFiles: [deliverableUrl] });
+            await updateOrderStatus(id, 'completed', { deliverableFiles: [deliverableUrl] });
             toast.success("Work delivered successfully!");
             const orderRes = await getOrderById(id);
             setOrder(orderRes.data.data);
@@ -170,13 +133,12 @@ const OrderDetail = () => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'Requested': return 'bg-yellow-100 text-yellow-800';
-            case 'Accepted': return 'bg-blue-100 text-blue-800';
-            case 'In Progress': return 'bg-indigo-100 text-indigo-800';
-            case 'Ready for Delivery': return 'bg-purple-100 text-purple-800';
-            case 'Completed': return 'bg-green-100 text-green-800';
-            case 'Rejected': 
-            case 'Cancelled': return 'bg-red-100 text-red-800';
+            case 'pending': return 'bg-yellow-100 text-yellow-800';
+            case 'accepted': return 'bg-blue-100 text-blue-800';
+            case 'in_progress': return 'bg-indigo-100 text-indigo-800';
+            case 'completed': return 'bg-green-100 text-green-800';
+            case 'rejected': 
+            case 'cancelled': return 'bg-red-100 text-red-800';
             default: return 'bg-stone-100 text-stone-800';
         }
     };
@@ -212,22 +174,18 @@ const OrderDetail = () => {
                             <div className="bg-stone-50 p-4 rounded-xl border border-stone-100 space-y-3">
                                 <h3 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Available Actions</h3>
                                 
-                                {isArtist && order.status === 'Requested' && (
+                                {isArtist && order.status === 'pending' && (
                                     <div className="flex gap-2">
-                                        <Button className="flex-1" onClick={() => handleUpdateStatus('Accepted')}>Accept</Button>
-                                        <Button variant="outline" className="flex-1 border-red-200 text-red-600 hover:bg-red-50" onClick={() => handleUpdateStatus('Rejected')}>Reject</Button>
+                                        <Button className="flex-1" onClick={() => handleUpdateStatus('accepted')}>Accept</Button>
+                                        <Button variant="outline" className="flex-1 border-red-200 text-red-600 hover:bg-red-50" onClick={() => handleUpdateStatus('rejected')}>Reject</Button>
                                     </div>
                                 )}
 
-                                {isArtist && order.status === 'Accepted' && (
-                                    <Button className="w-full" onClick={() => handleUpdateStatus('In Progress')}>Mark In Progress</Button>
+                                {isArtist && order.status === 'accepted' && (
+                                    <Button className="w-full" onClick={() => handleUpdateStatus('in_progress')}>Mark In Progress</Button>
                                 )}
 
-                                {isArtist && order.status === 'In Progress' && (
-                                    <Button className="w-full" onClick={() => handleUpdateStatus('Ready for Delivery')}>Ready for Delivery</Button>
-                                )}
-
-                                {isArtist && order.status === 'Ready for Delivery' && (
+                                {isArtist && order.status === 'in_progress' && (
                                     <form onSubmit={handleDeliver} className="space-y-3 pt-2">
                                         <div className="text-xs font-bold text-stone-500 mb-1">FINAL DELIVERABLE URL</div>
                                         <input 
@@ -244,44 +202,21 @@ const OrderDetail = () => {
                                     </form>
                                 )}
 
-                                {isClient && (order.status === 'Delivered' || order.status === 'Revision Requested') && (
+                                {isClient && order.status === 'in_progress' && (
                                     <div className="space-y-2">
-                                        <Button className="w-full bg-green-600 hover:bg-green-700 shadow-md" onClick={() => handleUpdateStatus('Completed')}>
-                                            <CheckCircle className="w-4 h-4 mr-2 inline" /> Accept & Complete
-                                        </Button>
-                                        <Button variant="outline" className="w-full border-stone-300" onClick={() => handleUpdateStatus('Revision Requested')}>
-                                            Request Revision
+                                        <Button className="w-full bg-green-600 hover:bg-green-700 shadow-md" onClick={() => handleUpdateStatus('completed')}>
+                                            <CheckCircle className="w-4 h-4 mr-2 inline" /> Finish & Accept
                                         </Button>
                                     </div>
                                 )}
-
-                                <div className="pt-4 mt-4 border-t border-stone-100">
-                                    <button 
-                                        onClick={handleRaiseDispute}
-                                        className="text-xs text-stone-400 hover:text-red-500 flex items-center gap-1 transition mx-auto"
-                                    >
-                                        <AlertTriangle className="w-3 h-3" /> Report a problem / Raise Dispute
-                                    </button>
-                                </div>
-
-                                {isClient && order.status === 'Accepted' && (
-                                    <Button 
-                                        className="w-full bg-indigo-600 hover:bg-indigo-700 shadow-md" 
-                                        onClick={handlePayment}
-                                        disabled={paying}
-                                    >
-                                        <Landmark className="w-4 h-4 mr-2 inline" /> 
-                                        {paying ? 'Processing...' : `Simulate $${order.serviceId?.basePrice?.toFixed(2)} Payment`}
+                                
+                                {isClient && order.status === 'pending' && (
+                                    <Button variant="outline" className="w-full border-red-200 text-red-600 hover:bg-red-50" onClick={() => handleUpdateStatus('cancelled')}>
+                                        Cancel Request
                                     </Button>
                                 )}
 
-                                {isClient && order.status === 'Ready for Delivery' && (
-                                    <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => handleUpdateStatus('Completed')}>
-                                        <CheckCircle className="w-4 h-4 mr-2 inline" /> Accept & Complete
-                                    </Button>
-                                )}
-
-                                {(order.status === 'Completed' || order.status === 'Cancelled' || order.status === 'Rejected') && (
+                                {(order.status === 'completed' || order.status === 'cancelled' || order.status === 'rejected') && (
                                     <div className="text-center text-sm font-medium text-stone-500 py-2">
                                         No further actions available.
                                     </div>
@@ -290,10 +225,33 @@ const OrderDetail = () => {
 
                             {/* Details List */}
                             <div className="space-y-4">
-                                <div>
-                                    <span className="flex items-center gap-2 text-sm font-bold text-deep-cocoa mb-1"><FileText className="w-4 h-4 text-stone-400"/> Requirements</span>
+                                
+                                {order.statusHistory && order.statusHistory.length > 0 && (
+                                    <div className="mb-6">
+                                        <span className="flex items-center gap-2 text-sm font-bold text-deep-cocoa mb-4"><List className="w-4 h-4 text-stone-400"/> Order Journey</span>
+                                        <div className="relative border-l-2 border-stone-200 ml-3 space-y-6">
+                                            {order.statusHistory.map((historyItem, idx) => (
+                                                <div key={idx} className="relative pl-6">
+                                                    <div className="absolute w-3 h-3 bg-btn-brown rounded-full mt-1.5 -left-[7px] border-2 border-white"></div>
+                                                    <div className="flex flex-col">
+                                                        <span className={`text-xs font-bold uppercase tracking-wide inline-block w-max px-2 py-0.5 rounded ${getStatusColor(historyItem.status)} mb-1`}>
+                                                            {historyItem.status.replace('_', ' ')}
+                                                        </span>
+                                                        <span className="text-xs text-stone-500">
+                                                            {new Date(historyItem.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <div className="border-t border-stone-100 pt-4">
+                                    <span className="flex items-center gap-2 text-sm font-bold text-deep-cocoa mb-1"><FileText className="w-4 h-4 text-stone-400"/> Title & Description</span>
+                                    <p className="text-sm font-medium text-stone-800 mb-1">{order.title}</p>
                                     <p className="text-sm text-stone-600 bg-stone-50 p-3 rounded-lg border border-stone-100 whitespace-pre-wrap">
-                                        {order.requirements}
+                                        {order.description}
                                     </p>
                                 </div>
 
@@ -390,13 +348,13 @@ const OrderDetail = () => {
                                     type="text" 
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
-                                    placeholder={order.status === 'Completed' ? "Order completed. Chat is closed." : "Type your message..."}
-                                    disabled={order.status === 'Completed' || order.status === 'Cancelled' || order.status === 'Rejected'}
+                                    placeholder={order.status === 'completed' ? "Order completed. Chat is closed." : "Type your message..."}
+                                    disabled={order.status === 'completed' || order.status === 'cancelled' || order.status === 'rejected'}
                                     className="flex-1 bg-stone-100 border-none rounded-full px-5 py-3 text-sm focus:ring-2 focus:ring-btn-brown focus:bg-white transition disabled:opacity-50"
                                 />
                                 <Button 
                                     type="submit" 
-                                    disabled={!newMessage.trim() || sending || order.status === 'Completed' || order.status === 'Cancelled' || order.status === 'Rejected'}
+                                    disabled={!newMessage.trim() || sending || order.status === 'completed' || order.status === 'cancelled' || order.status === 'rejected'}
                                     className="rounded-full w-12 h-12 p-0 flex items-center justify-center shrink-0"
                                 >
                                     <Send className="w-5 h-5 ml-[-2px]" />

@@ -13,7 +13,6 @@ import ArtistProfile from './pages/ArtistProfile';
 import ArtistDashboard from './pages/ArtistDashboard';
 import ClientDashboard from './pages/ClientDashboard';
 import AdminDashboard from './pages/AdminDashboard';
-import OrderCheckout from './pages/OrderCheckout';
 import OrderDetail from './pages/OrderDetail';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -47,7 +46,6 @@ function AppLayout() {
           <Route path="/artist-dashboard" element={<ProtectedRoute><ArtistDashboard /></ProtectedRoute>} />
           <Route path="/client-dashboard" element={<ProtectedRoute><ClientDashboard /></ProtectedRoute>} />
           <Route path="/admin-dashboard" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/checkout/:artistId/:serviceId" element={<ProtectedRoute><OrderCheckout /></ProtectedRoute>} />
           <Route path="/orders/:id" element={<OrderDetail />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

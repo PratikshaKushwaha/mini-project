@@ -14,12 +14,11 @@ const commissionOrderSchema = new Schema(
             required: true,
             index: true
         },
-        serviceId: {
-            type: Schema.Types.ObjectId,
-            ref: "CommissionService",
+        title: {
+            type: String,
             required: true
         },
-        requirements: {
+        description: {
             type: String,
             required: true
         },
@@ -31,23 +30,24 @@ const commissionOrderSchema = new Schema(
         },
         status: {
             type: String,
-            enum: ['Requested', 'Accepted', 'Rejected', 'In Progress', 'Ready for Delivery', 'Delivered', 'Revision Requested', 'Completed', 'Cancelled'],
-            default: 'Requested',
+            enum: ['pending', 'accepted', 'rejected', 'in_progress', 'completed', 'cancelled'],
+            default: 'pending',
             index: true
         },
-        price: {
-            type: Number,
-            required: true,
-            default: 0
-        },
-        paymentStatus: {
-            type: String,
-            enum: ['pending', 'paid', 'failed'],
-            default: 'pending'
-        },
-        stripeSessionId: {
-            type: String
-        },
+        statusHistory: [{
+            status: {
+                type: String,
+                enum: ['pending', 'accepted', 'rejected', 'in_progress', 'completed', 'cancelled']
+            },
+            updatedBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User"
+            },
+            timestamp: {
+                type: Date,
+                default: Date.now
+            }
+        }],
         deliverableFiles: [{
             type: String // Cloudinary URLs for final high-res work
         }]

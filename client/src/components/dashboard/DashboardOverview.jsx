@@ -1,34 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { getArtistOrders, getServices } from '../../services/api';
+import { getArtistOrders } from '../../services/api';
 
 const DashboardOverview = () => {
     const { user } = useSelector(state => state.auth);
     const [stats, setStats] = useState({
         activeOrders: 0,
-        completedOrders: 0,
-        activeServices: 0
+        completedOrders: 0
     });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const [ordersRes, servicesRes] = await Promise.all([
-                    getArtistOrders(),
-                    getServices(user._id)
+                const [ordersRes] = await Promise.all([
+                    getArtistOrders()
                 ]);
 
                 const orders = ordersRes.data.data;
-                const services = servicesRes.data.data;
 
                 const activeOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'rejected').length;
                 const completedOrders = orders.filter(o => o.status === 'completed').length;
 
                 setStats({
                     activeOrders,
-                    completedOrders,
-                    activeServices: services.length
+                    completedOrders
                 });
             } catch (error) {
                 console.error("Failed to load overview stats", error);
@@ -54,10 +50,6 @@ const DashboardOverview = () => {
                 <div className="p-6 bg-stone-50 rounded-lg border border-stone-200 text-center">
                     <div className="text-4xl font-bold text-deep-cocoa mb-2">{stats.completedOrders}</div>
                     <div className="text-xs text-muted-taupe uppercase tracking-widest font-bold">Completed</div>
-                </div>
-                <div className="p-6 bg-stone-50 rounded-lg border border-stone-200 text-center">
-                    <div className="text-4xl font-bold text-deep-cocoa mb-2">{stats.activeServices}</div>
-                    <div className="text-xs text-muted-taupe uppercase tracking-widest font-bold">Services</div>
                 </div>
             </div>
 

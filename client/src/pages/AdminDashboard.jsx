@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import api, { getAdminStats, getAdminUsers, deleteAdminUser, getAdminDisputes, resolveDispute } from '../services/api';
+import api, { getAdminStats, getAdminUsers, deleteAdminUser } from '../services/api';
 import { Users, Palette, ShoppingBag, Folder, Trash2, ShieldAlert, AlertTriangle, CheckCircle } from 'lucide-react';
 import Button from '../components/Button';
 
@@ -131,87 +131,6 @@ const UserManagement = () => {
     );
 };
 
-const DisputeManagement = () => {
-    const [disputes, setDisputes] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    const fetchDisputes = async () => {
-        try {
-            const res = await getAdminDisputes();
-            setDisputes(res.data.data);
-        } catch (error) {
-            console.error("Failed to fetch disputes");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchDisputes();
-    }, []);
-
-    const handleResolve = async (id) => {
-        const resolution = prompt("Enter resolution details (e.g. Refund issued, Order cancelled, Escrow released):");
-        if (!resolution) return;
-        
-        try {
-            await resolveDispute(id, { status: "Resolved", resolution });
-            fetchDisputes();
-        } catch (error) {
-            alert("Failed to resolve dispute");
-        }
-    };
-
-    if (loading) return <div className="text-stone-500 animate-pulse">Loading disputes...</div>;
-
-    return (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100">
-            <h2 className="text-xl font-bold text-text-brown mb-6">Dispute Moderation</h2>
-            <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="border-b border-stone-200 text-sm font-medium text-stone-500">
-                            <th className="pb-3 pl-2">Order ID</th>
-                            <th className="pb-3">Raised By</th>
-                            <th className="pb-3">Reason</th>
-                            <th className="pb-3">Status</th>
-                            <th className="pb-3 text-right pr-2">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="text-sm">
-                        {disputes.map((d) => (
-                            <tr key={d._id} className="border-b border-stone-100 hover:bg-stone-50 transition">
-                                <td className="py-4 pl-2 font-mono text-xs text-stone-500">#{d.orderId?._id?.slice(-8)}</td>
-                                <td className="py-4">{d.raisedBy?.email}</td>
-                                <td className="py-4 font-medium text-red-600">{d.reason}</td>
-                                <td className="py-4">
-                                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
-                                        d.status === 'Open' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
-                                    }`}>
-                                        {d.status.toUpperCase()}
-                                    </span>
-                                </td>
-                                <td className="py-4 text-right pr-2">
-                                    {d.status === 'Open' && (
-                                        <Button 
-                                            size="sm" 
-                                            onClick={() => handleResolve(d._id)}
-                                            className="text-xs py-1"
-                                        >
-                                            Resolve
-                                        </Button>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-                {disputes.length === 0 && <div className="text-center py-8 text-stone-500">No active disputes.</div>}
-            </div>
-        </div>
-    );
-};
-
 const AdminDashboard = () => {
     const { user, loading } = useSelector(state => state.auth);
     const navigate = useNavigate();
@@ -243,8 +162,7 @@ const AdminDashboard = () => {
 
     const tabs = [
         { id: 'overview', label: 'Overview', icon: <Folder className="w-4 h-4" /> },
-        { id: 'users', label: 'User Management', icon: <Users className="w-4 h-4" /> },
-        { id: 'disputes', label: 'Disputes', icon: <AlertTriangle className="w-4 h-4" /> },
+        { id: 'users', label: 'User Management', icon: <Users className="w-4 h-4" /> }
     ];
 
     return (
@@ -293,7 +211,6 @@ const AdminDashboard = () => {
                     <div className="md:col-span-3">
                         {activeTab === 'overview' && <AdminOverview stats={stats} />}
                         {activeTab === 'users' && <UserManagement />}
-                        {activeTab === 'disputes' && <DisputeManagement />}
                     </div>
 
                 </div>

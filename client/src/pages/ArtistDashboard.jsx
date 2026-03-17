@@ -6,9 +6,7 @@ import Button from '../components/Button';
 import DashboardOverview from '../components/dashboard/DashboardOverview';
 import ProfileSettings from '../components/dashboard/ProfileSettings';
 import PortfolioManager from '../components/dashboard/PortfolioManager';
-import ServiceManager from '../components/dashboard/ServiceManager';
 import ArtistOrders from '../components/dashboard/ArtistOrders';
-import StripeConnect from '../components/dashboard/StripeConnect';
 
 const ArtistDashboard = () => {
     const { user } = useSelector((state) => state.auth);
@@ -29,9 +27,7 @@ const ArtistDashboard = () => {
         switch(activeTab) {
             case 'overview': return <DashboardOverview />;
             case 'portfolio': return <PortfolioManager />;
-            case 'services': return <ServiceManager />;
             case 'orders': return <ArtistOrders />;
-            case 'payments': return <StripeConnect />;
             case 'settings': return <ProfileSettings />;
             default: return <DashboardOverview />;
         }
@@ -57,8 +53,6 @@ const ArtistDashboard = () => {
                     <div className={navItemClass('overview')} onClick={() => setActiveTab('overview')}>Overview</div>
                     <div className={navItemClass('orders')} onClick={() => setActiveTab('orders')}>Commission Orders</div>
                     <div className={navItemClass('portfolio')} onClick={() => setActiveTab('portfolio')}>Portfolio Manager</div>
-                    <div className={navItemClass('services')} onClick={() => setActiveTab('services')}>Service Manager</div>
-                    <div className={navItemClass('payments')} onClick={() => setActiveTab('payments')}>Payments & Ledger</div>
                     <div className={navItemClass('settings')} onClick={() => setActiveTab('settings')}>Profile Settings</div>
                 </div>
 

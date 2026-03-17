@@ -46,7 +46,7 @@ const Register = () => {
     const handleGoogleSuccess = async (credentialResponse) => {
         try {
             setLoading(true);
-            const res = await googleLogin(credentialResponse.credential);
+            const res = await googleLogin(credentialResponse.credential, formData.role);
             dispatch(setCredentials({
                 user: res.data.data.user,
                 accessToken: res.data.data.accessToken

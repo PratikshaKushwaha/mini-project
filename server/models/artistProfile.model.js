@@ -39,10 +39,6 @@ const artistProfileSchema = new Schema(
         },
         profileImage: {
             type: String // Cloudinary URL
-        },
-        paymentSetup: {
-            type: Boolean,
-            default: false
         }
     },
     { timestamps: true }

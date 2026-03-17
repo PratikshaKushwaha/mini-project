@@ -16,35 +16,6 @@ const OrderCheckout = () => {
     const [loading, setLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
-
-    const handleRazorpayPayment = async (razorData, orderId) => {
-        const options = {
-            key: razorData.keyId,
-            amount: razorData.amount,
-            currency: razorData.currency,
-            name: "ArtisanConnect",
-            description: `Payment for Order #${orderId}`,
-            order_id: razorData.orderId,
-            handler: function (response) {
-                toast.success("Payment successful!");
-                navigate('/client-dashboard');
-            },
-            prefill: {
-                name: "User Name", // Ideally from Redux user state
-                email: "user@example.com",
-            },
-            theme: {
-                color: "#3d3028",
-            },
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.on('payment.failed', function (response) {
-            toast.error("Payment failed: " + response.error.description);
-        });
-        rzp.open();
-    };
-
     const onSubmit = async (data) => {
         setIsSubmitting(true);
         setErrorMsg("");
@@ -61,12 +32,12 @@ const OrderCheckout = () => {
             const orderRes = await createOrder(orderData);
             const createdOrder = orderRes.data.data;
 
-            // Trigger Razorpay Order creation
-            const razorRes = await createCheckoutSession(createdOrder._id);
-            const razorData = razorRes.data.data;
+            // Trigger Mock Checkout Process
+            await createCheckoutSession(createdOrder._id);
 
-            // Open Razorpay Modal
-            await handleRazorpayPayment(razorData, createdOrder._id);
+            // Mock success
+            toast.success("Academic Payment Successful!");
+            navigate('/client-dashboard');
             
         } catch (error) {
            setErrorMsg(error.response?.data?.message || "Failed to initiate payment.");
