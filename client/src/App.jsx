@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import Navbar from './components/Navbar';
 import PublicNavbar from './components/PublicNavbar';
 import Footer from './components/Footer';
@@ -27,12 +27,12 @@ import { setCredentials, setAuthLoading } from './store/authSlice';
 const PUBLIC_ONLY_ROUTES = ['/', '/login', '/register', '/forgot-password', '/community', '/about'];
 
 function AppLayout() {
-  const { pathname } = useLocation();
+  const { user } = useSelector(state => state.auth);
   const isPublicPage = PUBLIC_ONLY_ROUTES.includes(pathname);
 
   return (
     <div className="flex flex-col min-h-screen bg-stone-50 font-inter text-deep-cocoa">
-      {isPublicPage ? <PublicNavbar /> : <Navbar />}
+      {isPublicPage && !user ? <PublicNavbar /> : <Navbar />}
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -61,16 +61,36 @@ function App() {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
-        if (token) {
-          const res = await getCurrentUser();
+        let token = localStorage.getItem('accessToken');
+        
+        // Always try to fetch current user to test token/cookie
+        // If it fails with 401, the api.js interceptor will automatically try the refresh token!
+        let res;
+        try {
+           res = await getCurrentUser();
+        } catch(e) {
+            // First attempt failed, maybe token was missing or expired.
+            // Let's explicitly try to refresh just in case the interceptor missed it due to lack of token
+           if (e.response?.status === 401 && !token) {
+               const refreshRes = await api.post('/auth/refresh-token');
+               token = refreshRes.data.data.accessToken;
+               localStorage.setItem('accessToken', token);
+               res = await getCurrentUser(); // Try again with fresh token
+           } else {
+               throw e;
+           }
+        }
+
+        if (res && res.data.data) {
+          // Double check token is latest
+          token = localStorage.getItem('accessToken') || token;
           dispatch(setCredentials({ 
             user: res.data.data, 
             accessToken: token 
           }));
         }
       } catch (error) {
-        console.error("Silent refresh failed:", error);
+        console.error("Silent refresh failed or no valid session found");
         localStorage.removeItem('accessToken');
       } finally {
         dispatch(setAuthLoading(false));

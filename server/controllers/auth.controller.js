@@ -180,7 +180,8 @@ const googleAuth = asyncHandler(async (req, res) => {
                 )
             );
     } catch (error) {
-        throw new ApiError(401, "Invalid Google Token");
+        console.error("Google Auth Error:", error);
+        throw new ApiError(401, "Invalid Google Token: " + (error.message || "Unknown error"));
     }
 });
 
@@ -259,6 +260,25 @@ const getCurrentUser = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(200, req.user, "Current user fetched successfully"));
+});
+
+const updateProfile = asyncHandler(async (req, res) => {
+    const { fullName } = req.body;
+    
+    const user = await User.findById(req.user._id);
+    if (!user) throw new ApiError(404, "User not found");
+
+    if (fullName !== undefined) {
+        user.fullName = fullName;
+    }
+
+    await user.save({ validateBeforeSave: false });
+    
+    const updatedUser = await User.findById(user._id).select("-password");
+    
+    return res
+        .status(200)
+        .json(new ApiResponse(200, updatedUser, "Profile updated successfully"));
 });
 
 const forgotPassword = asyncHandler(async (req, res) => {
@@ -347,6 +367,7 @@ export {
     registerUser,
     loginUser,
     getCurrentUser,
+    updateProfile,
     googleAuth,
     forgotPassword,
     verifyOtp,

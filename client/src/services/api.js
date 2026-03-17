@@ -29,18 +29,18 @@ api.interceptors.response.use(
 
       try {
         // Attempt to refresh token
-        const res = await axios.post(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/auth/refresh-token`,
-          {},
-          { withCredentials: true }
-        );
+                const refreshRes = await axios.post(
+                    `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/auth/refresh-token`,
+                    {},
+                    { withCredentials: true }
+                );
 
-        const { accessToken } = res.data.data;
-        localStorage.setItem('accessToken', accessToken);
-        
-        // Update header and retry
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        return api(originalRequest);
+                const { accessToken } = refreshRes.data.data;
+                localStorage.setItem('accessToken', accessToken);
+                
+                // Update header and retry
+                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+                return api(originalRequest);
       } catch (refreshError) {
         // If refresh fails, logout user
         localStorage.removeItem('accessToken');
@@ -58,6 +58,7 @@ api.interceptors.response.use(
 export const registerUser = (userData) => api.post('/auth/register', userData);
 export const loginUser = (credentials) => api.post('/auth/login', credentials);
 export const getCurrentUser = () => api.get('/auth/me');
+export const updateProfile = (data) => api.put('/auth/me', data);
 
 // Advanced Auth
 export const googleLogin = (token, role) => api.post('/auth/google', { token, role });
@@ -75,6 +76,17 @@ export const getPortfolio = (artistId) => api.get(`/portfolio/artist/${artistId}
 export const addPortfolioItem = (data) => api.post('/portfolio', data);
 export const updatePortfolioItem = (id, data) => api.patch(`/portfolio/${id}`, data);
 export const deletePortfolioItem = (id) => api.delete(`/portfolio/${id}`);
+export const uploadPortfolioImage = (formData) => api.post('/portfolio/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+});
+
+// Community Posts
+export const getPosts = () => api.get('/posts');
+export const createPost = (data) => api.post('/posts', data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+});
+export const toggleLike = (id) => api.put(`/posts/${id}/like`);
+export const addComment = (id, data) => api.post(`/posts/${id}/comment`, data);
 
 // Orders
 export const getArtistOrders = () => api.get('/orders');

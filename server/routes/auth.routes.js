@@ -3,6 +3,7 @@ import {
     registerUser,
     loginUser,
     getCurrentUser,
+    updateProfile,
     googleAuth,
     forgotPassword,
     verifyOtp,
@@ -22,6 +23,7 @@ router.route("/logout").post(verifyJWT, logout);
 router.route("/logout-all").post(verifyJWT, logoutAll);
 router.route("/refresh-token").post(refreshToken);
 router.route("/me").get(verifyJWT, getCurrentUser);
+router.route("/me").put(verifyJWT, updateProfile);
 
 // Advanced Auth
 router.route("/google").post(googleAuth);
