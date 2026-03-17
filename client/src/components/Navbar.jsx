@@ -27,7 +27,7 @@ const Navbar = () => {
                     {/* Desktop Links */}
                     <div className="hidden lg:flex items-center space-x-8">
                         <Link to="/" className="text-text-brown font-semibold border-b-2 border-text-brown pb-1">Home</Link>
-                        <Link to="/artists" className="text-stone-600 hover:text-text-brown font-medium pb-1">Explore</Link>
+                        <Link to="/artists" className="text-stone-600 hover:text-text-brown font-medium pb-1">Discover</Link>
                         <Link to="/community" className="text-stone-600 hover:text-text-brown font-medium pb-1">Community</Link>
                         <Link to="/about" className="text-stone-600 hover:text-text-brown font-medium pb-1">About</Link>
                         {user && (

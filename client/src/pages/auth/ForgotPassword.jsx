@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { forgotPassword, verifyOtp, resetPassword } from '../services/api';
+import { forgotPassword, verifyOtp, resetPassword } from '../../services/api';
 import { Mail, KeyRound, Lock, ArrowRight } from 'lucide-react';
-import Button from '../components/Button';
+import Button from '../../components/Button';
 
 const ForgotPassword = () => {
     const [step, setStep] = useState(1);

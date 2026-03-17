@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Button = ({ children, variant = 'primary', className = '', ...props }) => {
+const Button = ({ children, variant = 'primary', className = '', isLoading, disabled, ...props }) => {
     const baseClass = "px-6 py-2 rounded-md transition-colors font-medium";
     
     let variantClass = "";
@@ -15,8 +15,8 @@ const Button = ({ children, variant = 'primary', className = '', ...props }) => 
     }
 
     return (
-        <button className={`${baseClass} ${variantClass} ${className}`} {...props}>
-            {children}
+        <button className={`${baseClass} ${variantClass} ${className}`} disabled={isLoading || disabled} {...props}>
+            {isLoading ? "Loading..." : children}
         </button>
     );
 };

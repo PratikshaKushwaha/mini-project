@@ -4,8 +4,8 @@ import { useDispatch } from 'react-redux';
 import { Mail, Lock } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
-import api, { googleLogin } from '../services/api';
-import { setCredentials } from '../store/authSlice';
+import api, { googleLogin } from '../../services/api';
+import { setCredentials } from '../../store/authSlice';
 
 const Login = () => {
     const [email, setEmail] = useState('');

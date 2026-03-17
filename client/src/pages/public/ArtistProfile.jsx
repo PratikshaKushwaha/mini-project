@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import api from '../services/api';
+import api from '../../services/api';
 import { Globe, Instagram, Twitter, MapPin } from 'lucide-react';
-import Button from '../components/Button';
+import Button from '../../components/Button';
 import { Helmet } from 'react-helmet-async';
-import RequestCommissionModal from '../components/RequestCommissionModal';
+import RequestCommissionModal from '../../components/RequestCommissionModal';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 
@@ -61,41 +61,59 @@ const ArtistProfile = () => {
                 <meta name="twitter:card" content="summary_large_image" />
             </Helmet>
 
-            {/* Header / Cover Area */}
-            <div className="bg-stone-200 h-64 w-full object-cover relative pattern-dots pattern-stone-300 pattern-bg-stone-100 pattern-size-4 pattern-opacity-40">
-                 {/* This could be a cover photo in the future */}
+            {/* Header / Cover Area - LinkedIn Style */}
+            <div className="w-full relative">
+                <div className="h-64 md:h-80 w-full overflow-hidden bg-stone-200">
+                    {profile.artistId?.bannerImage ? (
+                        <img 
+                            src={profile.artistId.bannerImage} 
+                            alt="Cover" 
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full pattern-dots pattern-stone-300 pattern-bg-stone-100 pattern-size-4 pattern-opacity-40"></div>
+                    )}
+                </div>
             </div>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 relative z-10">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 -mt-20">
                 <div className="bg-white rounded-3xl shadow-xl p-8 mb-12">
                     <div className="flex flex-col md:flex-row gap-8 items-start">
-                        {/* Avatar */}
-                        <div className="w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-cat-tan shrink-0">
+                        {/* Avatar - Overlapping the Banner */}
+                        <div className="w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-cat-tan shrink-0 -mt-16 md:-mt-24 relative z-20">
                             <img 
-                                src={profile.profileImage || `https://api.dicebear.com/7.x/notionists/svg?seed=${profile.artistId?.email}`} 
+                                src={profile.artistId?.profileImage || `https://api.dicebear.com/7.x/notionists/svg?seed=${profile.artistId?.email}`} 
                                 alt="Profile" 
                                 className="w-full h-full object-cover" 
                             />
                         </div>
 
                         {/* Info Header */}
-                        <div className="flex-1 mt-4 md:mt-0">
-                            <h1 className="text-4xl font-playfair font-bold text-text-brown mb-2">
-                                {profile.artistId?.email?.split('@')[0] || 'Artist'}
+                        <div className="flex-1 mt-4 md:mt-0 pt-2">
+                            <h1 className="text-4xl font-playfair font-bold text-text-brown flex flex-col md:flex-row md:items-baseline gap-2 mb-1">
+                                {profile.artistId?.fullName || profile.artistId?.email?.split('@')[0]}
+                                {profile.artistId?.username && (
+                                    <span className="text-xl font-inter text-stone-400 font-normal">@{profile.artistId.username}</span>
+                                )}
                             </h1>
                             
-                            <div className="flex items-center text-stone-500 mb-4 gap-4">
+                            <div className="flex flex-wrap items-center text-stone-500 mb-4 gap-4 text-sm font-medium">
                                 {profile.location && (
                                     <div className="flex items-center gap-1">
                                         <MapPin className="w-4 h-4" /> <span>{profile.location}</span>
                                     </div>
                                 )}
-                                <div className="flex items-center gap-1 text-orange-400 font-bold">
+                                {profile.artistId?.dob && (
+                                   <div className="flex items-center gap-1 text-stone-400">
+                                       <span>Born: {new Date(profile.artistId.dob).toLocaleDateString()}</span>
+                                   </div>
+                                )}
+                                <div className="flex items-center gap-1 text-orange-400 font-bold ml-auto md:ml-0 md:border-l md:border-stone-200 md:pl-4">
                                     ★ {reviewState.stats.avgRating?.toFixed(1) || '0.0'} <span className="text-stone-400 font-normal">({reviewState.stats.totalReviews || 0} reviews)</span>
                                 </div>
                             </div>
 
-                            <p className="text-lg text-stone-700 leading-relaxed mb-6 max-w-2xl">
+                            <p className="text-lg text-stone-700 leading-relaxed mb-6 max-w-2xl whitespace-pre-wrap">
                                 {profile.bio || "No bio provided yet."}
                             </p>
 

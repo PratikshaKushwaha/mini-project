@@ -66,9 +66,7 @@ let browseArtists = asyncHandler(async (req, res) => {
     }
 
     const profiles = await ArtistProfile.find(query)
-        .populate("artistId", "email")
-        .limit(Number(limit))
-        .skip((page - 1) * Number(limit))
+        .populate("artistId", "email fullName username profileImage bannerImage dob")
         .lean();
 
     // ── Rank each profile ────────────────────────────────────────────────────
@@ -118,8 +116,7 @@ let browseArtists = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, {
         data: ranked,
-        totalPages: Math.ceil(count / limit),
-        currentPage: Number(page),
+        total: count
     }, "Artists fetched successfully"));
 });
 

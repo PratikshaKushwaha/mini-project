@@ -8,7 +8,7 @@ const PublicNavbar = () => {
 
     const navLinks = [
         { label: 'Home',      href: '/' },
-        { label: 'Explore',   href: '/artists' },
+        { label: 'Discover',  href: '/artists' },
         { label: 'Community', href: '/community' },
         { label: 'About',     href: '/about' },
     ];

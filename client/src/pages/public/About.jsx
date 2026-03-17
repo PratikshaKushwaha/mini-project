@@ -29,7 +29,25 @@ const TEAM = [
     {
         name: 'Pratiksha Kushwaha',
         role: 'Founder & Developer',
-        image: 'https://api.dicebear.com/7.x/notionists/svg?seed=pratiksha',
+        image: 'https://i.pinimg.com/474x/38/13/82/381382f2a23d7b5d67c10c697ef525cb.jpg',
+        bio: 'Built ArtisanConnect to bridge the gap between talented local artists and clients who value handmade work.',
+    },
+    {
+        name: 'Srushti Kamble',
+        role: 'Founder & Developer',
+        image: 'https://i.pinimg.com/736x/14/0b/07/140b0766c7ecb0e2ba140548b24585db.jpg',
+        bio: 'Built ArtisanConnect to bridge the gap between talented local artists and clients who value handmade work.',
+    },
+    {
+        name: 'Madhura Lad',
+        role: 'Founder & Developer',
+        image: 'https://i.pinimg.com/474x/c7/bf/13/c7bf13f920b0abd0d30e1aabf2d4fbf7.jpg',
+        bio: 'Built ArtisanConnect to bridge the gap between talented local artists and clients who value handmade work.',
+    },
+    {
+        name: 'Srushti Lohar',
+        role: 'Founder & Developer',
+        image: 'https://i.pinimg.com/736x/5c/65/c4/5c65c420cf559de9ab9b5a44bb0d8356.jpg',
         bio: 'Built ArtisanConnect to bridge the gap between talented local artists and clients who value handmade work.',
     },
 ];
@@ -113,12 +131,12 @@ const About = () => {
             </section>
 
             {/* Team */}
-            <section className="max-w-[1400px] mx-auto px-4 sm:px-6 xl:px-8 py-20">
+            <section className="max-w-[1400px] mx-auto px-3 sm:px-4 xl:px-6 py-20">
                 <div className="text-center mb-12">
                     <h2 className="text-4xl font-playfair font-bold text-text-brown mb-3">Meet the Team</h2>
                     <p className="text-stone-500 max-w-lg mx-auto">The passionate people behind ArtisanConnect.</p>
                 </div>
-                <div className="flex justify-center gap-8 flex-wrap">
+                <div className="flex justify-center gap-4 flex-wrap">
                     {TEAM.map(member => (
                         <div key={member.name} className="bg-white rounded-3xl p-8 shadow-sm text-center max-w-xs w-full">
                             <img

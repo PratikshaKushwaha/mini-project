@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { logoutUser } from '../store/authSlice';
+import { logoutUser } from '../../store/authSlice';
 import { useNavigate } from 'react-router-dom';
-import Button from '../components/Button';
-import DashboardOverview from '../components/dashboard/DashboardOverview';
-import ProfileSettings from '../components/dashboard/ProfileSettings';
-import PortfolioManager from '../components/dashboard/PortfolioManager';
-import ArtistOrders from '../components/dashboard/ArtistOrders';
+import Button from '../../components/Button';
+import DashboardOverview from '../../components/dashboard/DashboardOverview';
+import ProfileSettings from '../../components/dashboard/ProfileSettings';
+import PortfolioManager from '../../components/dashboard/PortfolioManager';
+import ArtistOrders from '../../components/dashboard/ArtistOrders';
 
 const ArtistDashboard = () => {
     const { user } = useSelector((state) => state.auth);

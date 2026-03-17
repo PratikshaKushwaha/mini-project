@@ -13,6 +13,7 @@ import {
     refreshToken
 } from "../controllers/auth.controller.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
+import { upload } from "../middleware/multer.middleware.js";
 
 
 const router = Router();
@@ -23,7 +24,14 @@ router.route("/logout").post(verifyJWT, logout);
 router.route("/logout-all").post(verifyJWT, logoutAll);
 router.route("/refresh-token").post(refreshToken);
 router.route("/me").get(verifyJWT, getCurrentUser);
-router.route("/me").put(verifyJWT, updateProfile);
+router.route("/me").put(
+    verifyJWT, 
+    upload.fields([
+        { name: 'profileImage', maxCount: 1 },
+        { name: 'bannerImage', maxCount: 1 }
+    ]), 
+    updateProfile
+);
 
 // Advanced Auth
 router.route("/google").post(googleAuth);

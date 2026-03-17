@@ -12,8 +12,8 @@ import {
     BookOpen,
     PlusCircle
 } from "lucide-react";
-import { getPosts, createPost, toggleLike, addComment } from "../services/api";
-import CreatePostModal from "../components/CreatePostModal";
+import { getPosts, createPost, toggleLike, addComment } from '../../services/api';
+import CreatePostModal from '../../components/CreatePostModal';
 import toast from "react-hot-toast";
 
 // ── Markdown-lite renderer (bold only) ───────────────────────────────────────

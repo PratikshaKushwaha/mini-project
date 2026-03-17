@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import api, { getAdminStats, getAdminUsers, deleteAdminUser } from '../services/api';
+import api, { getAdminStats, getAdminUsers, deleteAdminUser } from '../../services/api';
 import { Users, Palette, ShoppingBag, Folder, Trash2, ShieldAlert, AlertTriangle, CheckCircle } from 'lucide-react';
-import Button from '../components/Button';
+import Button from '../../components/Button';
 
 // Admin Sub-components
 const AdminOverview = ({ stats }) => (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getPortfolio, addPortfolioItem, deletePortfolioItem } from '../../services/api';
+import { getPortfolio, addPortfolioItem, deletePortfolioItem, getCategories } from '../../services/api';
 import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import Button from '../Button';
@@ -11,6 +11,7 @@ const PortfolioManager = () => {
     const [loading, setLoading] = useState(true);
     const { register, handleSubmit, reset } = useForm();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [categories, setCategories] = useState([]);
 
     useEffect(() => {
         fetchPortfolio();
@@ -20,6 +21,10 @@ const PortfolioManager = () => {
         try {
             const res = await getPortfolio(user._id);
             setItems(res.data.data);
+            
+            // Also fetch categories
+            const catRes = await getCategories();
+            setCategories(catRes.data.data || []);
         } catch (error) {
             console.error(error);
         } finally {
@@ -30,14 +35,17 @@ const PortfolioManager = () => {
     const onSubmit = async (data) => {
         setIsSubmitting(true);
         try {
-            // Note: Since cloudinary is mocked, we expect a mediaUrl directly.
-            // In a real app we'd upload the file first.
-            await addPortfolioItem({
-                title: data.title,
-                description: data.description,
-                price: parseFloat(data.price) || 0,
-                mediaUrl: data.mediaUrl || `https://picsum.photos/seed/${Math.random()}/800/600`
-            });
+            const formData = new FormData();
+            formData.append('title', data.title);
+            if (data.description) formData.append('description', data.description);
+            if (data.price) formData.append('price', parseFloat(data.price));
+            if (data.categoryId) formData.append('categoryId', data.categoryId);
+            
+            if (data.image && data.image[0]) {
+                formData.append('image', data.image[0]);
+            }
+
+            await addPortfolioItem(formData);
             reset();
             fetchPortfolio();
         } catch (error) {
@@ -65,11 +73,32 @@ const PortfolioManager = () => {
             <form onSubmit={handleSubmit(onSubmit)} className="mb-12 p-6 bg-stone-50 border border-stone-200 rounded-lg">
                 <h3 className="text-lg font-bold mb-4">Add New Item</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <Input label="Title" {...register('title', { required: true })} required />
+                    <Input label="Title *" {...register('title', { required: true })} required />
                     <Input label="Price ($)" type="number" step="0.01" {...register('price')} />
                 </div>
-                <div className="mb-4">
-                    <Input label="Media URL (Optional Mock)" placeholder="Leave blank for random image" {...register('mediaUrl')} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label className="block text-sm font-medium text-deep-cocoa mb-1">Image Upload *</label>
+                        <input 
+                            type="file" 
+                            accept="image/*"
+                            {...register('image', { required: true })}
+                            className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none bg-white"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-deep-cocoa mb-1">Category</label>
+                        <select 
+                            {...register('categoryId')}
+                            className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-muted-taupe bg-white"
+                        >
+                            <option value="">Select Category...</option>
+                            {categories.map(c => (
+                                <option key={c._id} value={c._id}>{c.name}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
                 <div className="mb-4">
                     <label className="block text-sm font-medium text-deep-cocoa mb-1">Description</label>

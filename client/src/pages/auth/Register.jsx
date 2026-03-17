@@ -4,14 +4,16 @@ import { useDispatch } from 'react-redux';
 import { Mail, Lock, User } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
-import api, { googleLogin } from '../services/api';
-import { setCredentials } from '../store/authSlice';
+import api, { googleLogin } from '../../services/api';
+import { setCredentials } from '../../store/authSlice';
 
 const Register = () => {
     const [searchParams] = useSearchParams();
     const defaultRole = searchParams.get('role') === 'artist' ? 'artist' : 'client';
     
     const [formData, setFormData] = useState({
+        fullName: '',
+        username: '',
         email: '',
         password: '',
         role: defaultRole
@@ -100,6 +102,42 @@ const Register = () => {
                     <form className="space-y-4" onSubmit={handleSubmit}>
                         {error && <div className="text-red-500 text-sm text-center bg-red-50 py-2 rounded">{error}</div>}
                         
+                        <div className="space-y-1">
+                            <label className="block text-sm font-semibold text-text-brown ml-1">Full Name</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <User className="h-5 w-5 text-stone-400" />
+                                </div>
+                                <input
+                                    type="text"
+                                    name="fullName"
+                                    required
+                                    value={formData.fullName}
+                                    onChange={handleChange}
+                                    placeholder="Jane Doe"
+                                    className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-btn-brown focus:border-transparent outline-none transition"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="block text-sm font-semibold text-text-brown ml-1">Username</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-stone-400 font-bold">
+                                    @
+                                </div>
+                                <input
+                                    type="text"
+                                    name="username"
+                                    required
+                                    value={formData.username}
+                                    onChange={handleChange}
+                                    placeholder="janedoe123"
+                                    className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-btn-brown focus:border-transparent outline-none transition"
+                                />
+                            </div>
+                        </div>
+
                         <div className="space-y-1">
                             <label className="block text-sm font-semibold text-text-brown ml-1">Email</label>
                             <div className="relative">

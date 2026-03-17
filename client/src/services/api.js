@@ -58,7 +58,15 @@ api.interceptors.response.use(
 export const registerUser = (userData) => api.post('/auth/register', userData);
 export const loginUser = (credentials) => api.post('/auth/login', credentials);
 export const getCurrentUser = () => api.get('/auth/me');
-export const updateProfile = (data) => api.put('/auth/me', data);
+export const updateProfile = (data) => {
+    // Check if data is FormData to apply correct headers
+    if (data instanceof FormData) {
+        return api.put('/auth/me', data, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+    }
+    return api.put('/auth/me', data);
+};
 
 // Advanced Auth
 export const googleLogin = (token, role) => api.post('/auth/google', { token, role });
@@ -72,8 +80,10 @@ export const getArtists = (params) => api.get('/artists', { params });
 export const updateArtistProfile = (data) => api.post('/artists/profile', data);
 
 // Portfolio
-export const getPortfolio = (artistId) => api.get(`/portfolio/artist/${artistId}`);
-export const addPortfolioItem = (data) => api.post('/portfolio', data);
+export const getPortfolio = (artistId) => api.get(`/portfolio/${artistId}`);
+export const addPortfolioItem = (formData) => api.post('/portfolio', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+});
 export const updatePortfolioItem = (id, data) => api.patch(`/portfolio/${id}`, data);
 export const deletePortfolioItem = (id) => api.delete(`/portfolio/${id}`);
 export const uploadPortfolioImage = (formData) => api.post('/portfolio/upload', formData, {

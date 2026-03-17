@@ -6,10 +6,10 @@ import {
     updateOrderStatus, 
     getOrderMessages, 
     sendMessage 
-} from '../services/api';
+} from '../../services/api';
 import { Send, Clock, FileText, CheckCircle, AlertCircle, Star, AlertTriangle, List } from 'lucide-react';
-import { submitReview } from '../services/api';
-import ReviewModal from '../components/ReviewModal';
+import { submitReview } from '../../services/api';
+import ReviewModal from '../../components/ReviewModal';
 import toast from 'react-hot-toast';
 
 const OrderDetail = () => {

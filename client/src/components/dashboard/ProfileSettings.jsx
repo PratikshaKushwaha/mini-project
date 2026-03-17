@@ -13,6 +13,10 @@ const ProfileSettings = () => {
     const [loading, setLoading] = useState(false);
     const [dbCategories, setDbCategories] = useState([]);
     const [selectedCategories, setSelectedCategories] = useState([]);
+    
+    // File state
+    const [profileImageFile, setProfileImageFile] = useState(null);
+    const [bannerImageFile, setBannerImageFile] = useState(null);
 
     useEffect(() => {
         const fetchDbCategories = async () => {
@@ -27,9 +31,18 @@ const ProfileSettings = () => {
     }, []);
 
     useEffect(() => {
+        // Load User baseline
+        if (user) {
+            setValue('fullName', user.fullName || '');
+            setValue('username', user.username || '');
+            if (user.dob) {
+                setValue('dob', user.dob.split('T')[0]); // YYYY-MM-DD
+            }
+        }
+
         const fetchProfile = async () => {
             try {
-                // Fetch existing profile if available. We use the user ID.
+                // Fetch artist-specific profile.
                 const res = await getArtistProfile(user._id);
                 const profile = res.data.data;
                 if (profile) {
@@ -44,19 +57,35 @@ const ProfileSettings = () => {
                 console.error("Could not fetch profile", error);
             }
         };
-        if(user?._id) fetchProfile();
+        if(user?.role === 'artist') fetchProfile();
     }, [user, setValue]);
 
     const onSubmit = async (data) => {
         setLoading(true);
-        setMessage('');
         try {
-            // Combine standard data with our managed selectedCategories array
-            const formattedData = {
-                ...data,
-                categories: selectedCategories
-            };
-            await updateArtistProfile(formattedData);
+            // 1. Update Core User Info (including images) via FormData
+            const userFormData = new FormData();
+            if (data.fullName) userFormData.append('fullName', data.fullName);
+            if (data.username) userFormData.append('username', data.username);
+            if (data.dob) userFormData.append('dob', data.dob);
+            if (profileImageFile) userFormData.append('profileImage', profileImageFile);
+            if (bannerImageFile) userFormData.append('bannerImage', bannerImageFile);
+
+            await updateProfile(userFormData);
+
+            // 2. Update Artist Specific Info (JSON)
+            if (user.role === 'artist') {
+                const artistData = {
+                    bio: data.bio,
+                    location: data.location,
+                    website: data.website,
+                    instagram: data.instagram,
+                    twitter: data.twitter,
+                    categories: selectedCategories
+                };
+                await updateArtistProfile(artistData);
+            }
+            
             toast.success('Profile updated successfully!');
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to update profile');
@@ -70,21 +99,70 @@ const ProfileSettings = () => {
             <h2 className="text-2xl font-playfair mb-6">Profile Settings</h2>
             
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
-                <div>
-                    <label className="block text-sm font-medium text-deep-cocoa mb-1">Bio</label>
-                    <textarea 
-                        {...register('bio')}
-                        className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-muted-taupe bg-stone-50"
-                        rows="4"
-                        placeholder="Tell clients about yourself and your art style..."
-                    ></textarea>
+                
+                <h3 className="text-lg font-semibold text-deep-cocoa border-b border-stone-200 pb-2">Basic Info</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input 
+                        label="Full Name" 
+                        placeholder="Jane Doe"
+                        {...register('fullName')}
+                    />
+                    <Input 
+                        label="Username" 
+                        placeholder="janedoe123"
+                        {...register('username')}
+                    />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input 
+                        type="date"
+                        label="Date of Birth" 
+                        {...register('dob')}
+                    />
                 </div>
 
-                <Input 
-                    label="Location" 
-                    placeholder="e.g. New York, Remote"
-                    {...register('location')}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-deep-cocoa mb-1">Avatar / Profile Image</label>
+                        <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={(e) => setProfileImageFile(e.target.files[0])}
+                            className="w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cat-cream file:text-text-brown hover:file:bg-orange-100 transition"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-deep-cocoa mb-1">Banner Image</label>
+                        <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={(e) => setBannerImageFile(e.target.files[0])}
+                            className="w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cat-cream file:text-text-brown hover:file:bg-orange-100 transition"
+                        />
+                    </div>
+                </div>
+
+                {user.role === 'artist' && (
+                    <>
+                        <h3 className="text-lg font-semibold text-deep-cocoa border-b border-stone-200 pb-2 pt-4">Artist Profile</h3>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-deep-cocoa mb-1">Bio</label>
+                            <textarea 
+                                {...register('bio')}
+                                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-muted-taupe bg-stone-50"
+                                rows="4"
+                                placeholder="Tell clients about yourself and your art style..."
+                            ></textarea>
+                        </div>
+
+                        <Input 
+                            label="Location" 
+                            placeholder="e.g. New York, Remote"
+                            {...register('location')}
+                        />
 
                 <div>
                     <label className="block text-sm font-medium text-deep-cocoa mb-3">Categories</label>
@@ -129,6 +207,8 @@ const ProfileSettings = () => {
                         />
                     </div>
                 </div>
+                </>
+                )}
 
                 <Button type="submit" isLoading={loading}>Save Profile</Button>
             </form>

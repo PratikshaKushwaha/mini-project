@@ -5,20 +5,20 @@ import Navbar from './components/Navbar';
 import PublicNavbar from './components/PublicNavbar';
 import Footer from './components/Footer';
 
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
-import ArtistProfile from './pages/ArtistProfile';
-import ArtistDashboard from './pages/ArtistDashboard';
-import ClientDashboard from './pages/ClientDashboard';
-import AdminDashboard from './pages/AdminDashboard';
-import OrderDetail from './pages/OrderDetail';
-import NotFound from './pages/NotFound';
+import Home from './pages/public/Home';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ArtistProfile from './pages/public/ArtistProfile';
+import ArtistDashboard from './pages/dashboard/ArtistDashboard';
+import ClientDashboard from './pages/dashboard/ClientDashboard';
+import AdminDashboard from './pages/dashboard/AdminDashboard';
+import OrderDetail from './pages/orders/OrderDetail';
+import NotFound from './pages/public/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
-import BrowseArtists from './pages/BrowseArtists';
-import Community from './pages/Community';
-import About from './pages/About';
+import BrowseArtists from './pages/public/BrowseArtists';
+import Community from './pages/public/Community';
+import About from './pages/public/About';
 import { Toaster } from 'react-hot-toast';
 import { getCurrentUser } from './services/api';
 import { setCredentials, setAuthLoading } from './store/authSlice';
@@ -28,6 +28,8 @@ const PUBLIC_ONLY_ROUTES = ['/', '/login', '/register', '/forgot-password', '/co
 
 function AppLayout() {
   const { user } = useSelector(state => state.auth);
+  const location = useLocation();
+  const pathname = location.pathname;
   const isPublicPage = PUBLIC_ONLY_ROUTES.includes(pathname);
 
   return (

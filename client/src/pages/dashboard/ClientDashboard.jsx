@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { logoutUser } from '../store/authSlice';
+import { logoutUser } from '../../store/authSlice';
 import { useNavigate } from 'react-router-dom';
-import Button from '../components/Button';
-import ClientOrders from '../components/dashboard/ClientOrders';
-import { updateProfile } from '../services/api';
+import Button from '../../components/Button';
+import ClientOrders from '../../components/dashboard/ClientOrders';
+import { updateProfile } from '../../services/api';
 import toast from 'react-hot-toast';
-import { setCredentials } from '../store/authSlice';
+import { setCredentials } from '../../store/authSlice';
 
 const ClientSettings = ({ user }) => {
     const [fullName, setFullName] = useState(user?.fullName || '');

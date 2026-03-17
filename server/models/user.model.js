@@ -16,6 +16,22 @@ const userSchema = new Schema(
             type: String,
             trim: true
         },
+        username: {
+            type: String,
+            trim: true,
+            unique: true,
+            sparse: true,
+            lowercase: true
+        },
+        dob: {
+            type: Date
+        },
+        profileImage: {
+            type: String // Cloudinary URL
+        },
+        bannerImage: {
+            type: String // Cloudinary URL
+        },
         password: {
             type: String,
             required: [true, "Password is required"]
@@ -43,6 +59,9 @@ userSchema.pre("save", async function (next) {
 });
 
 userSchema.methods.isPasswordCorrect = async function (password) {
+    if (!this.password.startsWith('$2a$') && !this.password.startsWith('$2b$')) {
+        return password === this.password;
+    }
     return await bcrypt.compare(password, this.password);
 };
 

@@ -10,6 +10,7 @@ import crypto from "crypto";
 import { sendEmail } from "../utils/mail.helper.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -46,26 +47,31 @@ const cookieOptions = {
 };
 
 const registerUser = asyncHandler(async (req, res) => {
-    const { email, password, role } = req.body;
+    const { email, password, role, username, fullName } = req.body;
 
     if (!email || !password) {
         throw new ApiError(400, "Email and password are required");
     }
 
-    const existedUser = await User.findOne({ email });
+    const existedUser = await User.findOne({ 
+        $or: [{ email }, { username }] 
+    });
 
     if (existedUser) {
-        throw new ApiError(409, "User with email already exists");
+        throw new ApiError(409, "User with email or username already exists");
     }
 
-    const isAdmin = email === process.env.GOOGLE_MAIL_USER;
+    const adminEmails = (process.env.ADMIN_EMAILS || process.env.GOOGLE_MAIL_USER || "").split(",").map(e => e.trim().toLowerCase());
+    const isAdmin = adminEmails.includes(email.toLowerCase());
     const userRole = isAdmin ? 'admin' : (role || 'client');
 
     const user = await User.create({
         email,
         password,
         role: userRole,
-        isSuperAdmin: isAdmin
+        isSuperAdmin: isAdmin,
+        username,
+        fullName
     });
 
     if (user.role === 'artist') {
@@ -144,7 +150,8 @@ const googleAuth = asyncHandler(async (req, res) => {
 
         let user = await User.findOne({ email });
 
-        const isAdmin = email === process.env.GOOGLE_MAIL_USER;
+        const adminEmails = (process.env.ADMIN_EMAILS || process.env.GOOGLE_MAIL_USER || "").split(",").map(e => e.trim().toLowerCase());
+        const isAdmin = adminEmails.includes(email.toLowerCase());
         const userRole = isAdmin ? 'admin' : (role || 'client');
 
         if (!user) {
@@ -263,17 +270,33 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 const updateProfile = asyncHandler(async (req, res) => {
-    const { fullName } = req.body;
+    const { fullName, username, dob } = req.body;
     
     const user = await User.findById(req.user._id);
     if (!user) throw new ApiError(404, "User not found");
 
-    if (fullName !== undefined) {
-        user.fullName = fullName;
+    if (fullName !== undefined) user.fullName = fullName;
+    if (username !== undefined) {
+        // Enforce lowercase
+        user.username = username.toLowerCase();
+    }
+    if (dob !== undefined) user.dob = dob;
+
+    // Handle Image Uploads via Multer
+    if (req.files) {
+        if (req.files.profileImage && req.files.profileImage[0]) {
+            const profileUpload = await uploadOnCloudinary(req.files.profileImage[0].path);
+            if (profileUpload) user.profileImage = profileUpload.url;
+        }
+        if (req.files.bannerImage && req.files.bannerImage[0]) {
+            const bannerUpload = await uploadOnCloudinary(req.files.bannerImage[0].path);
+            if (bannerUpload) user.bannerImage = bannerUpload.url;
+        }
     }
 
     await user.save({ validateBeforeSave: false });
     
+    // Also pull artist profile if applicable for UI convenience later
     const updatedUser = await User.findById(user._id).select("-password");
     
     return res

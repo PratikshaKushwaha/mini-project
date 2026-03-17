@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Heart, Pen, Monitor, Sparkles, Star, Scissors, Camera, Layers, Palette } from 'lucide-react';
 import { useSelector } from 'react-redux';
-import api from '../services/api';
+import api from '../../services/api';
 
 // SVG icon map for categories
 const CATEGORY_ICONS = {
