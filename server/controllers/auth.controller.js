@@ -219,11 +219,62 @@ const googleAuth = asyncHandler(async (req, res) => {
     }
 });
 
+// const refreshToken = asyncHandler(async (req, res) => {
+//     const oldRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
+//     if (!oldRefreshToken) {
+//         throw new ApiError(401, "Refresh token is missing");
+//     }
+
+//     try {
+//         const decodedToken = jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+//         const refreshTokenHash = crypto.createHash('sha256').update(oldRefreshToken).digest('hex');
+
+//         const session = await Session.findOne({
+//             refreshTokenHash,
+//             revoked: false
+//         });
+
+//         if (!session) {
+//             throw new ApiError(401, "Session not found or revoked");
+//         }
+
+//         const user = await User.findById(decodedToken._id);
+//         if (!user) {
+//             throw new ApiError(401, "User not found");
+//         }
+
+//         // Token Rotation: Generate new tokens and update session
+//         const newRefreshToken = user.generateRefreshToken();
+//         const newRefreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+
+//         session.refreshTokenHash = newRefreshTokenHash;
+//         session.ip = req.ip;
+//         session.userAgent = req.headers['user-agent'];
+//         await session.save();
+
+//         const accessToken = user.generateAccessToken(session._id);
+
+//         return res
+//             .status(200)
+//             .cookie("refreshToken", newRefreshToken, cookieOptions)
+//             .json(
+//                 new ApiResponse(200, { accessToken }, "Token refreshed successfully")
+//             );
+//     } catch (error) {
+//         console.error("Refresh token error:", error.message);
+//         throw new ApiError(401, "Invalid refresh token: " + error.message);
+//     }
+// }); 
+
 const refreshToken = asyncHandler(async (req, res) => {
     const oldRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
+    // ✅ FIX: Handle first-time user (no token yet)
     if (!oldRefreshToken) {
-        throw new ApiError(401, "Refresh token is missing");
+        return res.status(200).json(
+            new ApiResponse(200, { accessToken: null }, "No refresh token (first-time user)")
+        );
     }
 
     try {
@@ -244,7 +295,7 @@ const refreshToken = asyncHandler(async (req, res) => {
             throw new ApiError(401, "User not found");
         }
 
-        // Token Rotation: Generate new tokens and update session
+        // Token Rotation
         const newRefreshToken = user.generateRefreshToken();
         const newRefreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
 
@@ -258,12 +309,15 @@ const refreshToken = asyncHandler(async (req, res) => {
         return res
             .status(200)
             .cookie("refreshToken", newRefreshToken, cookieOptions)
-            .json(
-                new ApiResponse(200, { accessToken }, "Token refreshed successfully")
-            );
+            .json(new ApiResponse(200, { accessToken }, "Token refreshed successfully"));
+
     } catch (error) {
         console.error("Refresh token error:", error.message);
-        throw new ApiError(401, "Invalid refresh token: " + error.message);
+
+        //  OPTIONAL: also handle invalid token gracefully
+        return res.status(200).json(
+            new ApiResponse(200, { accessToken: null }, "Invalid or expired refresh token")
+        );
     }
 });
 
