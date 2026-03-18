@@ -22,12 +22,14 @@ const Login = () => {
         setLoading(true);
         try {
             const res = await api.post('/auth/login', { email, password });
-            dispatch(setCredentials({
-                user: res.data.data.user,
-                accessToken: res.data.data.accessToken
-            }));
+            const { user, accessToken } = res.data.data;
+            dispatch(setCredentials({ user, accessToken }));
             toast.success('Logged in successfully!');
-            navigate('/dashboard'); 
+            
+            // Redirect based on role
+            if (user.role === 'admin') navigate('/admin-dashboard');
+            else if (user.role === 'artist') navigate('/artist-dashboard');
+            else navigate('/client-dashboard');
         } catch (err) {
             const message = err.response?.data?.message || 'Login failed';
             toast.error(message);
@@ -41,12 +43,13 @@ const Login = () => {
         try {
             setLoading(true);
             const res = await googleLogin(credentialResponse.credential);
-            dispatch(setCredentials({
-                user: res.data.data.user,
-                accessToken: res.data.data.accessToken
-            }));
+            const { user, accessToken } = res.data.data;
+            dispatch(setCredentials({ user, accessToken }));
             toast.success('Logged in with Google!');
-            navigate('/dashboard');
+            
+            if (user.role === 'admin') navigate('/admin-dashboard');
+            else if (user.role === 'artist') navigate('/artist-dashboard');
+            else navigate('/client-dashboard');
         } catch (err) {
             const message = err.response?.data?.message || 'Google Login failed';
             toast.error(message);

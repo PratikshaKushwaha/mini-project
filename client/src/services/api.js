@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { store } from '../store/store';
+import { setCredentials, logoutUser } from '../store/authSlice';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -7,25 +9,23 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+// 🔹 Request interceptor
+api.interceptors.request.use((config) => {
+  const token = store.getState().auth.accessToken;
 
-// Response interceptor
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+// 🔹 Response interceptor
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // 🚫 Prevent retry loop
     if (!originalRequest || originalRequest._retry) {
       return Promise.reject(error);
     }
@@ -34,32 +34,32 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // ✅ Use SAME api instance
+        // Refresh token (cookie-based)
         const refreshRes = await api.post('/auth/refresh-token');
 
-        const { accessToken } = refreshRes.data.data;
+        const { accessToken, user } = refreshRes.data.data;
 
-        localStorage.setItem('accessToken', accessToken);
+        //  Update Redux (CRITICAL)
+        store.dispatch(setCredentials({
+          user: user || store.getState().auth.user,
+          accessToken
+        }));
 
-        // Retry original request
+        // Retry original request with new token
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
 
       } catch (refreshError) {
-        // ❌ Refresh failed → logout
-        localStorage.removeItem('accessToken');
 
-        // Optional: cleaner navigation if using React Router
-        window.location.href = '/login';
-
+        store.dispatch(logoutUser());
         return Promise.reject(refreshError);
       }
     }
 
-    console.error('API Error:', error.response?.data?.message || error.message);
     return Promise.reject(error);
   }
 );
+
 
 // ALL YOUR API FUNCTIONS (UNCHANGED BELOW)
 

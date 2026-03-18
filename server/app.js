@@ -1,6 +1,8 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import morgan from "morgan";
 import authRoutes from "./routes/auth.routes.js";
 import artistRoutes from "./routes/artist.routes.js";
 import portfolioRoutes from "./routes/portfolio.routes.js";
@@ -12,6 +14,9 @@ import reviewRoutes from "./routes/review.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import postRoutes from "./routes/post.routes.js";
 import rateLimit from "express-rate-limit";
+import passport from "passport";
+import { configurePassport } from "./config/passport.js";
+
 
 const app = express();
 
@@ -21,9 +26,14 @@ app.use(cors({
     credentials: true,
 }));
 app.use(cookieParser());
+app.use(morgan("dev"));
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
+
+// Passport Initialization
+configurePassport(passport);
+app.use(passport.initialize());
 
 // Rate limiting
 const limiter = rateLimit({
@@ -47,8 +57,20 @@ app.use("/api/v1/posts", postRoutes);
 
 // General Error Handler
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Internal Server Error' });
+    console.error("DEBUG - API ERROR:", {
+        message: err.message,
+        statusCode: err.statusCode,
+        stack: err.stack
+    });
+    
+    const statusCode = err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    
+    res.status(statusCode).json({ 
+        success: false, 
+        message,
+        errors: err.errors || []
+    });
 });
 
 export default app;

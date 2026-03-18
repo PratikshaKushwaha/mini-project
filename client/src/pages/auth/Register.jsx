@@ -49,12 +49,13 @@ const Register = () => {
         try {
             setLoading(true);
             const res = await googleLogin(credentialResponse.credential, formData.role);
-            dispatch(setCredentials({
-                user: res.data.data.user,
-                accessToken: res.data.data.accessToken
-            }));
+            const { user, accessToken } = res.data.data;
+            dispatch(setCredentials({ user, accessToken }));
             toast.success('Signed up with Google!');
-            navigate('/dashboard');
+            
+            if (user.role === 'admin') navigate('/admin-dashboard');
+            else if (user.role === 'artist') navigate('/artist-dashboard');
+            else navigate('/client-dashboard');
         } catch (err) {
             const message = err.response?.data?.message || 'Google signup failed';
             toast.error(message);

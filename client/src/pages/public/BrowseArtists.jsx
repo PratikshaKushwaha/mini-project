@@ -64,6 +64,21 @@ const BrowseArtists = () => {
                                             <span key={idx} className="text-xs bg-stone-100 text-deep-cocoa px-2 py-1 rounded-full font-medium">{cat}</span>
                                         ))}
                                     </div>
+
+                                    {/* Portfolio Preview */}
+                                    {profile.portfolioPreview && profile.portfolioPreview.length > 0 && (
+                                        <div className="grid grid-cols-3 gap-2 mb-4">
+                                            {profile.portfolioPreview.map((item, idx) => (
+                                                <div key={idx} className="aspect-square bg-stone-100 rounded-lg overflow-hidden border border-stone-200/50">
+                                                    <img 
+                                                        src={item.mediaUrl} 
+                                                        alt={item.title} 
+                                                        className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="mt-auto pt-4">

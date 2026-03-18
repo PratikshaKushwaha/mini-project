@@ -94,8 +94,8 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Order not found");
     }
 
-    const isArtist = order.artistId.toString() === req.user._id.toString();
-    const isClient = order.clientId.toString() === req.user._id.toString();
+    const isArtist = order.artistId._id.toString() === req.user._id.toString();
+    const isClient = order.clientId._id.toString() === req.user._id.toString();
     const isAdmin = req.user.role === 'admin';
 
     if (!isArtist && !isClient && !isAdmin) {
@@ -111,8 +111,8 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Clients can only cancel pending requests");
     }
 
-    if (isArtist && ['cancelled'].includes(status)) {
-         throw new ApiError(403, "Artists cannot cancel requests, they can only reject");
+    if (isArtist && status === 'cancelled') {
+        throw new ApiError(403, "Artists cannot cancel requests, they can only reject");
     }
 
     if (!validTransitions[order.status]?.includes(status) && !isAdmin) {
@@ -133,7 +133,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     await order.save();
 
     // Dispatch Notification
-    const recipientId = req.user.role === 'artist' ? order.clientId : order.artistId;
+    const recipientId = isArtist ? order.clientId._id : order.artistId._id;
     
     await createInternalNotification({
         recipient: recipientId,

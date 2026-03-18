@@ -1,0 +1,10 @@
+Connected to MongoDB for real seeding...
+Cleared existing data.
+Seeded 8 categories.
+Seeded Admin user.
+Seeded 14 users (artists and clients).
+Seeded artist profiles and 5 artworks each.
+Seeded 23 community posts (including 3 from admin).
+Seeded 10 commission orders and their reviews.
+Seeded 5 message threads (25 messages total).
+Seeding completed successfully!

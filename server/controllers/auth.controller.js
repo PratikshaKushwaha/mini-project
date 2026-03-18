@@ -11,6 +11,7 @@ import { sendEmail } from "../utils/mail.helper.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { emailService } from "../utils/email.service.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -64,8 +65,18 @@ const registerUser = asyncHandler(async (req, res) => {
         .split(",")
         .map(e => e.trim().toLowerCase());
 
+    const artistEmails = (process.env.ARTIST_EMAILS || "")
+        .split(",")
+        .map(e => e.trim().toLowerCase());
+
     const isAdmin = adminEmails.includes(email.toLowerCase());
-    const userRole = isAdmin ? 'admin' : (role || 'client');
+    const isRestrictedArtist = artistEmails.includes(email.toLowerCase());
+
+    if (isRestrictedArtist && role === 'client') {
+        throw new ApiError(400, "This email is reserved for artist accounts only.");
+    }
+
+    const userRole = isAdmin ? 'admin' : (isRestrictedArtist ? 'artist' : (role || 'client'));
 
     const user = await User.create({
         email,
@@ -84,6 +95,9 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const { accessToken, refreshToken, sessionId } = await generateAccessAndRefreshTokens(user._id, req);
     const createdUser = await User.findById(user._id).select("-password");
+
+    // Send Welcome Email (Non-blocking)
+    emailService.notifyWelcomeEmail(user.email, user.fullName || user.username);
 
     return res.status(201)
         .cookie("refreshToken", refreshToken, cookieOptions)
@@ -113,7 +127,10 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invalid user credentials");
     }
 
+    console.log("Found user, generating tokens for:", user.email);
     const { accessToken, refreshToken, sessionId } = await generateAccessAndRefreshTokens(user._id, req);
+    
+    console.log("Locating logged in user details...");
     const loggedInUser = await User.findById(user._id).select("-password");
 
     return res
@@ -150,8 +167,16 @@ const googleAuth = asyncHandler(async (req, res) => {
         let user = await User.findOne({ email });
 
         const adminEmails = (process.env.ADMIN_EMAILS || process.env.GOOGLE_MAIL_USER || "").split(",").map(e => e.trim().toLowerCase());
+        const artistEmails = (process.env.ARTIST_EMAILS || "").split(",").map(e => e.trim().toLowerCase());
+        
         const isAdmin = adminEmails.includes(email.toLowerCase());
-        const userRole = isAdmin ? 'admin' : (role || 'client');
+        const isRestrictedArtist = artistEmails.includes(email.toLowerCase());
+        
+        if (isRestrictedArtist && role === 'client') {
+            throw new ApiError(400, "This email is reserved for artist accounts only.");
+        }
+
+        const userRole = isAdmin ? 'admin' : (isRestrictedArtist ? 'artist' : (role || 'client'));
 
         if (!user) {
             user = await User.create({
@@ -166,6 +191,9 @@ const googleAuth = asyncHandler(async (req, res) => {
                     artistId: user._id
                 });
             }
+
+            // Send Welcome Email for new Google user
+            emailService.notifyWelcomeEmail(user.email, user.fullName || user.email);
         }
 
         const { accessToken, refreshToken, sessionId } = await generateAccessAndRefreshTokens(user._id, req);
@@ -234,7 +262,8 @@ const refreshToken = asyncHandler(async (req, res) => {
                 new ApiResponse(200, { accessToken }, "Token refreshed successfully")
             );
     } catch (error) {
-        throw new ApiError(401, "Invalid refresh token");
+        console.error("Refresh token error:", error.message);
+        throw new ApiError(401, "Invalid refresh token: " + error.message);
     }
 });
 
@@ -284,18 +313,17 @@ const updateProfile = asyncHandler(async (req, res) => {
     // Handle Image Uploads via Multer
     if (req.files) {
         if (req.files.profileImage && req.files.profileImage[0]) {
-            const profileUpload = await uploadOnCloudinary(req.files.profileImage[0].path);
+            const profileUpload = await uploadOnCloudinary(req.files.profileImage[0].buffer);
             if (profileUpload) user.profileImage = profileUpload.url;
         }
         if (req.files.bannerImage && req.files.bannerImage[0]) {
-            const bannerUpload = await uploadOnCloudinary(req.files.bannerImage[0].path);
+            const bannerUpload = await uploadOnCloudinary(req.files.bannerImage[0].buffer);
             if (bannerUpload) user.bannerImage = bannerUpload.url;
         }
     }
 
     await user.save({ validateBeforeSave: false });
     
-    // Also pull artist profile if applicable for UI convenience later
     const updatedUser = await User.findById(user._id).select("-password");
     
     return res
@@ -325,14 +353,18 @@ const forgotPassword = asyncHandler(async (req, res) => {
             "Your Password Reset OTP",
             `Your OTP for password reset is: ${otp}. It is valid for 15 minutes.`,
             `
-                <div style="font-family: sans-serif; padding: 20px; color: #3d3028;">
-                    <h2 style="color: #3d3028;">Password Reset Request</h2>
-                    <p>You requested a password reset. Use the following OTP to continue:</p>
-                    <div style="font-size: 24px; font-weight: bold; background: #fdfaf7; padding: 10px; border-radius: 8px; display: inline-block; border: 1px solid #e5e0dc;">
-                        ${otp}
+                <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 600px; margin: 0 auto; background-color: #fdfaf7; border-radius: 24px; overflow: hidden; border: 1px solid #e5e0dc;">
+                    <div style="background-color: #3d3028; padding: 40px; text-align: center; color: #ffffff;">
+                        <h1 style="margin: 0; font-size: 24px;">Password Reset</h1>
                     </div>
-                    <p>This OTP is valid for 15 minutes.</p>
-                    <p style="font-size: 12px; color: #8c7e74; margin-top: 20px;">If you didn't request this, please ignore this email.</p>
+                    <div style="padding: 40px; color: #3d3028; line-height: 1.6; text-align: center;">
+                        <p style="font-size: 16px; color: #665a52;">You requested a password reset. Use the following OTP to continue:</p>
+                        <div style="font-size: 32px; font-weight: bold; background: #e5e0dc; color: #3d3028; padding: 20px; border-radius: 16px; display: inline-block; margin: 20px 0; letter-spacing: 4px;">
+                            ${otp}
+                        </div>
+                        <p style="font-size: 14px; color: #8c7e74;">This OTP is valid for 15 minutes.</p>
+                        <p style="font-size: 12px; color: #b2a8a0; margin-top: 30px;">If you didn't request this, please ignore this email.</p>
+                    </div>
                 </div>
             `
         );

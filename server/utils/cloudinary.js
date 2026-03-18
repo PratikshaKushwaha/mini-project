@@ -1,5 +1,4 @@
 import { v2 as cloudinary } from "cloudinary";
-import fs from "fs";
 
 cloudinary.config({ 
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
@@ -7,20 +6,29 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET 
 });
 
-const uploadOnCloudinary = async (localFilePath) => {
+const uploadOnCloudinary = async (fileBuffer) => {
     try {
-        if (!localFilePath) return null;
+        if (!fileBuffer) return null;
         
-        const response = await cloudinary.uploader.upload(localFilePath, {
-            resource_type: "auto" // Auto detect image, video, etc
+        return new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                {
+                    resource_type: "auto",
+                    folder: "artisan_uploads"
+                },
+                (error, result) => {
+                    if (error) {
+                        console.error("Cloudinary upload error:", error);
+                        return resolve(null);
+                    }
+                    resolve(result);
+                }
+            );
+            uploadStream.end(fileBuffer);
         });
 
-        // File has been uploaded successfull
-        fs.unlinkSync(localFilePath);
-        return response;
-
     } catch (error) {
-        fs.unlinkSync(localFilePath); // Remove the locally saved temporary file as the upload operation failed
+        console.error("Cloudinary upload utility error:", error);
         return null;
     }
 }

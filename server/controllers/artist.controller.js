@@ -3,6 +3,7 @@ import { ArtistProfile } from "../models/artistProfile.model.js";
 import { User } from "../models/user.model.js";
 import { Review } from "../models/review.model.js";
 import { CommissionOrder } from "../models/commissionOrder.model.js";
+import { PortfolioItem } from "../models/portfolioItem.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -37,13 +38,13 @@ let updateArtistProfile = asyncHandler(async (req, res) => {
 let getArtistProfile = asyncHandler(async (req, res) => {
     const { artistId } = req.params;
 
-    const profile = await ArtistProfile.findOne({ artistId }).populate("artistId", "email");
+    const profile = await ArtistProfile.findOne({ artistId }).populate("artistId", "fullName username profileImage bannerImage email");
 
     if (!profile) {
         throw new ApiError(404, "Artist profile not found");
     }
 
-    return res.status(200).json(new ApiResponse(200, profile, "Artist Profile fetched successfully"));
+    return res.status(200).json(new ApiResponse(200, profile, "Artist profile fetched successfully"));
 });
 
 let browseArtists = asyncHandler(async (req, res) => {
@@ -85,12 +86,13 @@ let browseArtists = asyncHandler(async (req, res) => {
                 };
             }
 
-            const [reviewStats, completedOrders] = await Promise.all([
+            const [reviewStats, completedOrders, portfolioPreview] = await Promise.all([
                 Review.aggregate([
                     { $match: { artistId: new mongoose.Types.ObjectId(artistUserId) } },
                     { $group: { _id: null, avgRating: { $avg: "$rating" }, reviewCount: { $sum: 1 } } },
                 ]),
                 CommissionOrder.countDocuments({ artistId: artistUserId, status: "Completed" }),
+                PortfolioItem.find({ artistId: artistUserId }).limit(3).select("mediaUrl title").lean()
             ]);
 
             const avg   = reviewStats[0]?.avgRating  ?? 0;
@@ -105,6 +107,7 @@ let browseArtists = asyncHandler(async (req, res) => {
                 reviewCount: rcnt,
                 completedOrders,
                 rankScore: parseFloat(rankScore.toFixed(3)),
+                portfolioPreview
             };
         })
     );

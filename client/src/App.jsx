@@ -1,3 +1,131 @@
+// import React, { useEffect } from 'react';
+// import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+// import { useDispatch, useSelector } from 'react-redux';
+// import Navbar from './components/Navbar';
+// import PublicNavbar from './components/PublicNavbar';
+// import Footer from './components/Footer';
+
+// import Home from './pages/public/Home';
+// import Login from './pages/auth/Login';
+// import Register from './pages/auth/Register';
+// import ForgotPassword from './pages/auth/ForgotPassword';
+// import ArtistProfile from './pages/public/ArtistProfile';
+// import ArtistDashboard from './pages/dashboard/ArtistDashboard';
+// import ClientDashboard from './pages/dashboard/ClientDashboard';
+// import AdminDashboard from './pages/dashboard/AdminDashboard';
+// import OrderDetail from './pages/orders/OrderDetail';
+// import NotFound from './pages/public/NotFound';
+// import ProtectedRoute from './components/ProtectedRoute';
+// import BrowseArtists from './pages/public/BrowseArtists';
+// import Community from './pages/public/Community';
+// import About from './pages/public/About';
+// import { Toaster } from 'react-hot-toast';
+// import { getCurrentUser } from './services/api';
+// import { setCredentials, setAuthLoading } from './store/authSlice';
+
+// // Public-only routes that use the minimal landing navbar
+// const PUBLIC_ONLY_ROUTES = ['/', '/login', '/register', '/forgot-password', '/community', '/about'];
+
+// function AppLayout() {
+//   const { user } = useSelector(state => state.auth);
+//   const location = useLocation();
+//   const pathname = location.pathname;
+//   const isPublicPage = PUBLIC_ONLY_ROUTES.includes(pathname);
+
+//   return (
+//     <div className="flex flex-col min-h-screen bg-stone-50 font-inter text-deep-cocoa">
+//       {isPublicPage && !user ? <PublicNavbar /> : <Navbar />}
+//       <main className="flex-grow">
+//         <Routes>
+//           <Route path="/" element={<Home />} />
+//           <Route path="/login" element={<Login />} />
+//           <Route path="/register" element={<Register />} />
+//           <Route path="/forgot-password" element={<ForgotPassword />} />
+//           <Route path="/community" element={<Community />} />
+//           <Route path="/about" element={<About />} />
+//           <Route path="/artists" element={<BrowseArtists />} />
+//           <Route path="/artists/:id" element={<ArtistProfile />} />
+//           <Route path="/artist-dashboard" element={<ProtectedRoute><ArtistDashboard /></ProtectedRoute>} />
+//           <Route path="/client-dashboard" element={<ProtectedRoute><ClientDashboard /></ProtectedRoute>} />
+//           <Route path="/admin-dashboard" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
+//           <Route path="/orders/:id" element={<OrderDetail />} />
+//           <Route path="*" element={<NotFound />} />
+//         </Routes>
+//       </main>
+//       <Footer />
+//     </div>
+//   );
+// }
+
+// function App() {
+//   const dispatch = useDispatch();
+
+//   useEffect(() => {
+//     const initializeAuth = async () => {
+//       try {
+//         let token = localStorage.getItem('accessToken');
+        
+//         // Always try to fetch current user to test token/cookie
+//         // If it fails with 401, the api.js interceptor will automatically try the refresh token!
+//         let res;
+//         try {
+//            res = await getCurrentUser();
+//         } catch(e) {
+//             // First attempt failed, maybe token was missing or expired.
+//             // Let's explicitly try to refresh just in case the interceptor missed it due to lack of token
+//            if (e.response?.status === 401 && !token) {
+//                const refreshRes = await api.post('/auth/refresh-token');
+//                token = refreshRes.data.data.accessToken;
+//                localStorage.setItem('accessToken', token);
+//                res = await getCurrentUser(); // Try again with fresh token
+//            } else {
+//                throw e;
+//            }
+//         }
+
+//         if (res && res.data.data) {
+//           // Double check token is latest
+//           token = localStorage.getItem('accessToken') || token;
+//           dispatch(setCredentials({ 
+//             user: res.data.data, 
+//             accessToken: token 
+//           }));
+//         }
+//       } catch (error) {
+//         console.error("Silent refresh failed or no valid session found");
+//         localStorage.removeItem('accessToken');
+//       } finally {
+//         dispatch(setAuthLoading(false));
+//       }
+//     };
+
+//     initializeAuth();
+//   }, [dispatch]);
+
+//   return (
+//     <Router>
+//       <Toaster position="top-right" toastOptions={{
+//           style: {
+//               background: '#3d3028',
+//               color: '#fff',
+//               borderRadius: '12px',
+//               fontFamily: 'Inter, sans-serif',
+//               fontSize: '14px',
+//           },
+//           success: {
+//               iconTheme: {
+//                   primary: '#fff',
+//                   secondary: '#3d3028',
+//               },
+//           },
+//       }} />
+//       <AppLayout />
+//     </Router>
+//   );
+// }
+
+// export default App;
+
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -20,21 +148,33 @@ import BrowseArtists from './pages/public/BrowseArtists';
 import Community from './pages/public/Community';
 import About from './pages/public/About';
 import { Toaster } from 'react-hot-toast';
-import { getCurrentUser } from './services/api';
-import { setCredentials, setAuthLoading } from './store/authSlice';
 
-// Public-only routes that use the minimal landing navbar
-const PUBLIC_ONLY_ROUTES = ['/', '/login', '/register', '/forgot-password', '/community', '/about'];
+import { getCurrentUser } from './services/api';
+import { setCredentials, setAuthLoading, logoutUser } from './store/authSlice';
+
+// Public-only routes
+const PUBLIC_ONLY_ROUTES = [
+  '/',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/community',
+  '/about'
+];
 
 function AppLayout() {
   const { user } = useSelector(state => state.auth);
   const location = useLocation();
   const pathname = location.pathname;
-  const isPublicPage = PUBLIC_ONLY_ROUTES.includes(pathname);
+
+  const isPublicPage = PUBLIC_ONLY_ROUTES.some(route =>
+    pathname === route || pathname.startsWith(route + '/')
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-stone-50 font-inter text-deep-cocoa">
       {isPublicPage && !user ? <PublicNavbar /> : <Navbar />}
+
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -45,13 +185,30 @@ function AppLayout() {
           <Route path="/about" element={<About />} />
           <Route path="/artists" element={<BrowseArtists />} />
           <Route path="/artists/:id" element={<ArtistProfile />} />
-          <Route path="/artist-dashboard" element={<ProtectedRoute><ArtistDashboard /></ProtectedRoute>} />
-          <Route path="/client-dashboard" element={<ProtectedRoute><ClientDashboard /></ProtectedRoute>} />
-          <Route path="/admin-dashboard" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
+
+          <Route path="/artist-dashboard" element={
+            <ProtectedRoute>
+              <ArtistDashboard />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/client-dashboard" element={
+            <ProtectedRoute>
+              <ClientDashboard />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/admin-dashboard" element={
+            <ProtectedRoute requireAdmin={true}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
+
           <Route path="/orders/:id" element={<OrderDetail />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
+
       <Footer />
     </div>
   );
@@ -63,37 +220,21 @@ function App() {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        let token = localStorage.getItem('accessToken');
-        
-        // Always try to fetch current user to test token/cookie
-        // If it fails with 401, the api.js interceptor will automatically try the refresh token!
-        let res;
-        try {
-           res = await getCurrentUser();
-        } catch(e) {
-            // First attempt failed, maybe token was missing or expired.
-            // Let's explicitly try to refresh just in case the interceptor missed it due to lack of token
-           if (e.response?.status === 401 && !token) {
-               const refreshRes = await api.post('/auth/refresh-token');
-               token = refreshRes.data.data.accessToken;
-               localStorage.setItem('accessToken', token);
-               res = await getCurrentUser(); // Try again with fresh token
-           } else {
-               throw e;
-           }
-        }
-
-        if (res && res.data.data) {
-          // Double check token is latest
-          token = localStorage.getItem('accessToken') || token;
-          dispatch(setCredentials({ 
-            user: res.data.data, 
-            accessToken: token 
+        const res = await getCurrentUser();
+        if (res?.data?.data) {
+          dispatch(setCredentials({
+            user: res.data.data,
+            accessToken: null // Token stays in memory only
           }));
         }
       } catch (error) {
-        console.error("Silent refresh failed or no valid session found");
-        localStorage.removeItem('accessToken');
+        // Only logout if it's truly unauthenticated (401)
+        if (error.response?.status === 401) {
+          console.log("Session expired or invalid");
+          dispatch(logoutUser());
+        } else {
+          console.error("Auth initialization error:", error);
+        }
       } finally {
         dispatch(setAuthLoading(false));
       }
@@ -104,21 +245,24 @@ function App() {
 
   return (
     <Router>
-      <Toaster position="top-right" toastOptions={{
+      <Toaster
+        position="top-right"
+        toastOptions={{
           style: {
-              background: '#3d3028',
-              color: '#fff',
-              borderRadius: '12px',
-              fontFamily: 'Inter, sans-serif',
-              fontSize: '14px',
+            background: '#3d3028',
+            color: '#fff',
+            borderRadius: '12px',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '14px',
           },
           success: {
-              iconTheme: {
-                  primary: '#fff',
-                  secondary: '#3d3028',
-              },
+            iconTheme: {
+              primary: '#fff',
+              secondary: '#3d3028',
+            },
           },
-      }} />
+        }}
+      />
       <AppLayout />
     </Router>
   );

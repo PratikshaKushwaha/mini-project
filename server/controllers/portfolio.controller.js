@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { emailService } from "../utils/email.service.js";
 
 const addPortfolioItem = asyncHandler(async (req, res) => {
     const { title, description, categoryId, price } = req.body;
@@ -10,7 +11,7 @@ const addPortfolioItem = asyncHandler(async (req, res) => {
     
     // Check if an image file was uploaded
     if (req.file) {
-        const cloudinaryUpload = await uploadOnCloudinary(req.file.path);
+        const cloudinaryUpload = await uploadOnCloudinary(req.file.buffer);
         if (!cloudinaryUpload) {
              throw new ApiError(500, "Error uploading image to Cloudinary");
         }
@@ -34,6 +35,9 @@ const addPortfolioItem = asyncHandler(async (req, res) => {
         categoryId,
         price
     });
+
+    // Send Upload Confirmation Email (Non-blocking)
+    emailService.notifyArtworkUpload(req.user.email, title);
 
     return res.status(201).json(new ApiResponse(201, item, "Portfolio item created successfully"));
 });
@@ -70,7 +74,7 @@ const updatePortfolioItem = asyncHandler(async (req, res) => {
     let mediaUrl = req.body.mediaUrl;
 
     if (req.file) {
-        const cloudinaryUpload = await uploadOnCloudinary(req.file.path);
+        const cloudinaryUpload = await uploadOnCloudinary(req.file.buffer);
         if (cloudinaryUpload) {
              mediaUrl = cloudinaryUpload.url;
         }

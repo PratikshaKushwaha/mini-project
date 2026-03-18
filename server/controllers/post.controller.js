@@ -26,14 +26,9 @@ const createPost = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Title and body are required to create a post");
     }
 
-    let imageLocalPath;
-    if (req.file) {
-        imageLocalPath = req.file.path;
-    }
-
     let cloudImgUrl = "";
-    if (imageLocalPath) {
-        const uploadResponse = await uploadOnCloudinary(imageLocalPath);
+    if (req.file) {
+        const uploadResponse = await uploadOnCloudinary(req.file.buffer);
         if (!uploadResponse) {
             throw new ApiError(500, "Failed to upload image to cloudinary");
         }
