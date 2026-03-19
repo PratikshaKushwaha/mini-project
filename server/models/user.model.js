@@ -21,7 +21,8 @@ const userSchema = new Schema(
             trim: true,
             unique: true,
             sparse: true,
-            lowercase: true
+            lowercase: true,
+            match: [/^[a-z0-9_]{3,20}$/, "Username must be 3-20 chars: letters, numbers, underscores only"]
         },
         dob: {
             type: Date
@@ -45,6 +46,20 @@ const userSchema = new Schema(
             type: Boolean,
             default: false
         },
+        // For Google OAuth new-user flow
+        hasCompletedProfile: {
+            type: Boolean,
+            default: true // false only for Google OAuth pending-setup users
+        },
+        googleEmail: {
+            type: String,
+            lowercase: true,
+            trim: true
+        },
+        // Password reset
+        resetPasswordOtp: {
+            type: String
+        },
         resetPasswordExpires: {
             type: Date
         }
@@ -59,9 +74,6 @@ userSchema.pre("save", async function (next) {
 });
 
 userSchema.methods.isPasswordCorrect = async function (password) {
-    if (!this.password.startsWith('$2a$') && !this.password.startsWith('$2b$')) {
-        return password === this.password;
-    }
     return await bcrypt.compare(password, this.password);
 };
 

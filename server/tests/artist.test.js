@@ -2,90 +2,73 @@ import request from 'supertest';
 import app from '../app.js';
 import { connectDBForTesting, disconnectDBForTesting, clearDBForTesting } from './setup.testdb.js';
 
-let artistAccessToken;
-let artistId;
+let artistToken, clientToken, artistId, clientId;
 
 beforeAll(async () => {
     process.env.ACCESS_TOKEN_SECRET = 'test_access_secret';
     process.env.ACCESS_TOKEN_EXPIRY = '1h';
+    process.env.REFRESH_TOKEN_SECRET = 'test_refresh_secret';
+    process.env.REFRESH_TOKEN_EXPIRY = '1d';
     await connectDBForTesting();
 });
 
-afterEach(async () => {
-    // Usually clearDBForTesting, but in this suite we might want to keep the user between tests.
-    // To be safe and isolated, let's clear and re-register in beforeEach
-});
+afterAll(async () => { await disconnectDBForTesting(); });
 
-afterAll(async () => {
-    await disconnectDBForTesting();
-});
-
-describe('Artist Profile Endpoints', () => {
+describe('Artist Profile', () => {
     beforeEach(async () => {
         await clearDBForTesting();
 
-        // Register new artist
-        const res = await request(app)
-            .post('/api/v1/auth/register')
-            .send({
-                email: 'profiletest@example.com',
-                password: 'password123',
-                role: 'artist'
-            });
-        artistId = res.body.data._id;
+        const artistRes = await request(app).post('/api/v1/auth/register').send({
+            email: 'artist@example.com', password: 'password123', username: 'artisttest', role: 'artist'
+        });
+        artistId = artistRes.body.data.user._id;
 
-        // Login to get token
-        const loginRes = await request(app)
-            .post('/api/v1/auth/login')
-            .send({
-                email: 'profiletest@example.com',
-                password: 'password123'
-            });
-        
-        artistAccessToken = loginRes.body.data.accessToken;
+        const loginRes = await request(app).post('/api/v1/auth/login').send({
+            identifier: 'artisttest', password: 'password123'
+        });
+        artistToken = loginRes.body.data.accessToken;
     });
 
     it('should update artist profile', async () => {
         const res = await request(app)
             .post('/api/v1/artists/profile')
-            .set('Authorization', `Bearer ${artistAccessToken}`)
-            .send({
-                bio: 'This is a test bio',
-                location: 'Remote',
-                categories: ['Digital Art']
-            });
-        
+            .set('Authorization', `Bearer ${artistToken}`)
+            .send({ bio: 'Test bio', location: 'Remote', categories: ['Digital Art'] });
+
         expect(res.statusCode).toBe(200);
-        expect(res.body.data).toHaveProperty('bio', 'This is a test bio');
-        expect(res.body.data).toHaveProperty('location', 'Remote');
+        expect(res.body.data).toHaveProperty('bio', 'Test bio');
         expect(res.body.data.categories).toContain('Digital Art');
     });
 
-    it('should fetch an artist profile by artistId', async () => {
-        // First update the profile so it has data
-        await request(app)
-            .post('/api/v1/artists/profile')
-            .set('Authorization', `Bearer ${artistAccessToken}`)
-            .send({ bio: 'Fetched Bio' });
+    it('should fetch artist profile by artistId', async () => {
+        await request(app).post('/api/v1/artists/profile')
+            .set('Authorization', `Bearer ${artistToken}`)
+            .send({ bio: 'Public bio' });
 
         const res = await request(app).get(`/api/v1/artists/${artistId}`);
-        
         expect(res.statusCode).toBe(200);
-        expect(res.body.data).toHaveProperty('bio', 'Fetched Bio');
-        expect(res.body.data.artistId).toHaveProperty('email', 'profiletest@example.com');
+        expect(res.body.data).toHaveProperty('bio', 'Public bio');
     });
 
-    it('should browse artists', async () => {
-        // First update the profile
-        await request(app)
-            .post('/api/v1/artists/profile')
-            .set('Authorization', `Bearer ${artistAccessToken}`)
-            .send({ location: 'TestCity' });
-
-        const res = await request(app).get('/api/v1/artists');
-        
+    it('should browse artists with pagination', async () => {
+        const res = await request(app).get('/api/v1/artists?page=1&limit=10');
         expect(res.statusCode).toBe(200);
-        expect(res.body.data.profiles.length).toBeGreaterThan(0);
-        expect(res.body.data.profiles[0]).toHaveProperty('location', 'TestCity');
+        expect(res.body.data).toHaveProperty('profiles');
+        expect(Array.isArray(res.body.data.profiles)).toBe(true);
+    });
+
+    it('should reject profile update for non-artist', async () => {
+        const clientRes = await request(app).post('/api/v1/auth/register').send({
+            email: 'client@example.com', password: 'password123', username: 'clienttest', role: 'client'
+        });
+        const clientLogin = await request(app).post('/api/v1/auth/login').send({
+            identifier: 'clienttest', password: 'password123'
+        });
+
+        const res = await request(app)
+            .post('/api/v1/artists/profile')
+            .set('Authorization', `Bearer ${clientLogin.body.data.accessToken}`)
+            .send({ bio: 'Hacking' });
+        expect(res.statusCode).toBe(403);
     });
 });

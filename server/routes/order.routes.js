@@ -3,17 +3,19 @@ import {
     createOrder,
     getOrders,
     getOrderById,
-    updateOrderStatus
+    updateOrderStatus,
+    setPriceByArtist
 } from "../controllers/order.controller.js";
 import { verifyJWT, verifyRole } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
-router.use(verifyJWT); // All order routes require authentication
+router.use(verifyJWT);
 
 router.route("/").post(verifyRole(['client']), createOrder);
 router.route("/").get(getOrders);
 router.route("/:id").get(getOrderById);
 router.route("/:id/status").patch(updateOrderStatus);
+router.route("/:id/price").patch(verifyRole(['artist']), setPriceByArtist);
 
 export default router;

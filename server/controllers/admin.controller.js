@@ -1,28 +1,37 @@
 import { User } from "../models/user.model.js";
-import { Category } from "../models/category.model.js";
+import { ArtistProfile } from "../models/artistProfile.model.js";
+import { PortfolioItem } from "../models/portfolioItem.model.js";
 import { CommissionOrder } from "../models/commissionOrder.model.js";
+import { Message } from "../models/message.model.js";
+import { Review } from "../models/review.model.js";
+import { Feedback } from "../models/feedback.model.js";
+import { Session } from "../models/session.model.js";
+import { Category } from "../models/category.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
-// @route   GET /api/v1/admin/stats
 const getSystemStats = asyncHandler(async (req, res) => {
-    const totalUsers = await User.countDocuments();
-    const countArtists = await User.countDocuments({ role: 'artist' });
-    const countClients = await User.countDocuments({ role: 'client' });
-    const totalOrders = await CommissionOrder.countDocuments();
-    const totalCategories = await Category.countDocuments();
+    const [totalUsers, countArtists, countClients, totalOrders, completedOrders, totalCategories] =
+        await Promise.all([
+            User.countDocuments(),
+            User.countDocuments({ role: 'artist' }),
+            User.countDocuments({ role: 'client' }),
+            CommissionOrder.countDocuments(),
+            CommissionOrder.countDocuments({ status: 'completed' }),
+            Category.countDocuments()
+        ]);
 
     return res.status(200).json(new ApiResponse(200, {
         totalUsers,
         artists: countArtists,
         clients: countClients,
         totalOrders,
+        completedOrders,
         totalCategories
-    }, "Stats fetched successfully"));
+    }, "Stats fetched"));
 });
 
-// @route   PATCH /api/v1/admin/users/:id/role
 const updateUserRole = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { role } = req.body;
@@ -30,60 +39,67 @@ const updateUserRole = asyncHandler(async (req, res) => {
     if (!['artist', 'client', 'admin'].includes(role)) {
         throw new ApiError(400, "Invalid role");
     }
-
-    // Only Super Admin can change roles to/from admin
     if (!req.user.isSuperAdmin) {
-        throw new ApiError(403, "Only the primary admin can manage other admins");
+        throw new ApiError(403, "Only the primary admin can manage roles");
     }
 
     const targetUser = await User.findById(id);
-    if (!targetUser) {
-        throw new ApiError(404, "User not found");
-    }
+    if (!targetUser) throw new ApiError(404, "User not found");
+    if (targetUser.isSuperAdmin) throw new ApiError(403, "Cannot modify the primary admin");
 
-    // Protect Super Admin from role changes
-    if (targetUser.isSuperAdmin) {
-        throw new ApiError(403, "Cannot change role of the primary admin");
+    // If promoting to artist and no profile exists, create one
+    if (role === 'artist') {
+        const existingProfile = await ArtistProfile.findOne({ artistId: id });
+        if (!existingProfile) {
+            await ArtistProfile.create({ artistId: id });
+        }
     }
 
     targetUser.role = role;
     await targetUser.save();
 
-    return res.status(200).json(new ApiResponse(200, targetUser, "User role updated successfully"));
+    return res.status(200).json(new ApiResponse(200, targetUser, "User role updated"));
 });
 
-// @route   GET /api/v1/admin/users
 const getAllUsers = asyncHandler(async (req, res) => {
-    const users = await User.find().select("-password").sort({ createdAt: -1 });
-    return res.status(200).json(new ApiResponse(200, users, "Users fetched successfully"));
+    const { search, role } = req.query;
+    const query = {};
+    if (role) query.role = role;
+    if (search) {
+        const regex = new RegExp(search, 'i');
+        query.$or = [{ email: regex }, { username: regex }, { fullName: regex }];
+    }
+
+    const users = await User.find(query).select("-password -resetPasswordOtp").sort({ createdAt: -1 });
+    return res.status(200).json(new ApiResponse(200, users, "Users fetched"));
 });
 
-// @route   DELETE /api/v1/admin/users/:id
 const deleteUser = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    
-    // Prevent self-deletion if needed, or deleting other admins
+
     const targetUser = await User.findById(id);
-    if (!targetUser) {
-        throw new ApiError(404, "User not found");
-    }
-    if (targetUser.isSuperAdmin) {
-        throw new ApiError(403, "Cannot delete the primary admin");
-    }
-
+    if (!targetUser) throw new ApiError(404, "User not found");
+    if (targetUser.isSuperAdmin) throw new ApiError(403, "Cannot delete the primary admin");
     if (targetUser.role === 'admin' && !req.user.isSuperAdmin) {
-         throw new ApiError(403, "Only the primary admin can delete other admins");
+        throw new ApiError(403, "Only the primary admin can delete other admins");
     }
 
-    await User.findByIdAndDelete(id);
-    // Ideally, also cascade delete profile, portfolio, orders...
+    // Cascade delete — clean up all related data
+    const artistPortfolioItems = await PortfolioItem.find({ artistId: id }).select('_id');
+    const portfolioIds = artistPortfolioItems.map(p => p._id);
 
-    return res.status(200).json(new ApiResponse(200, {}, "User deleted successfully"));
+    await Promise.all([
+        ArtistProfile.deleteOne({ artistId: id }),
+        PortfolioItem.deleteMany({ artistId: id }),
+        CommissionOrder.deleteMany({ $or: [{ artistId: id }, { clientId: id }] }),
+        Message.deleteMany({ senderId: id }),
+        Review.deleteMany({ $or: [{ artistId: id }, { clientId: id }] }),
+        Feedback.deleteMany({ $or: [{ artistId: id }, { clientId: id }] }),
+        Session.deleteMany({ userId: id }),
+        User.findByIdAndDelete(id)
+    ]);
+
+    return res.status(200).json(new ApiResponse(200, {}, "User and all related data deleted"));
 });
 
-export {
-    getSystemStats,
-    getAllUsers,
-    deleteUser,
-    updateUserRole
-};
+export { getSystemStats, getAllUsers, deleteUser, updateUserRole };

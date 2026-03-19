@@ -15,28 +15,24 @@ import { emailService } from "../utils/email.service.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
 const generateAccessAndRefreshTokens = async (userId, req) => {
-    try {
-        const user = await User.findById(userId);
-        if (!user) throw new ApiError(404, "User not found");
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, "User not found");
 
-        const refreshToken = user.generateRefreshToken();
-        const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const refreshToken = user.generateRefreshToken();
+    const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
 
-        const session = await Session.create({
-            userId: user._id,
-            refreshTokenHash,
-            ip: req.ip,
-            userAgent: req.headers['user-agent']
-        });
+    const session = await Session.create({
+        userId: user._id,
+        refreshTokenHash,
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+    });
 
-        const accessToken = user.generateAccessToken(session._id);
-
-        return { accessToken, refreshToken, sessionId: session._id };
-    } catch (error) {
-        console.error("Token generation error:", error);
-        throw new ApiError(500, "Something went wrong while generating tokens");
-    }
+    const accessToken = user.generateAccessToken(session._id);
+    return { accessToken, refreshToken, sessionId: session._id };
 };
 
 const cookieOptions = {
@@ -46,256 +42,244 @@ const cookieOptions = {
     maxAge: 15 * 24 * 60 * 60 * 1000
 };
 
+// ─── Register ────────────────────────────────────────────────────────────────
+
 const registerUser = asyncHandler(async (req, res) => {
     const { email, password, role, username, fullName } = req.body;
 
     if (!email || !password) {
         throw new ApiError(400, "Email and password are required");
     }
+    if (!username) {
+        throw new ApiError(400, "Username is required");
+    }
+    // Validate username format
+    if (!/^[a-z0-9_]{3,20}$/.test(username.toLowerCase())) {
+        throw new ApiError(400, "Username must be 3-20 characters: lowercase letters, numbers, underscores only");
+    }
 
-    const existedUser = await User.findOne({ 
-        $or: [{ email }, { username }] 
+    const existedUser = await User.findOne({
+        $or: [{ email: email.toLowerCase() }, { username: username.toLowerCase() }]
     });
 
     if (existedUser) {
-        throw new ApiError(409, "User with email or username already exists");
+        if (existedUser.email === email.toLowerCase()) {
+            throw new ApiError(409, "An account with this email already exists");
+        }
+        throw new ApiError(409, "This username is already taken");
     }
 
-    const adminEmails = (process.env.ADMIN_EMAILS || process.env.GOOGLE_MAIL_USER || "")
-        .split(",")
-        .map(e => e.trim().toLowerCase());
-
-    const artistEmails = (process.env.ARTIST_EMAILS || "")
+    // Admin role is only assigned via env config, not by user self-declaration
+    const adminEmails = (process.env.ADMIN_EMAILS || "")
         .split(",")
         .map(e => e.trim().toLowerCase());
 
     const isAdmin = adminEmails.includes(email.toLowerCase());
-    const isRestrictedArtist = artistEmails.includes(email.toLowerCase());
-
-    if (isRestrictedArtist && role === 'client') {
-        throw new ApiError(400, "This email is reserved for artist accounts only.");
-    }
-
-    const userRole = isAdmin ? 'admin' : (isRestrictedArtist ? 'artist' : (role || 'client'));
+    const userRole = isAdmin ? 'admin' : (role === 'artist' ? 'artist' : 'client');
 
     const user = await User.create({
-        email,
+        email: email.toLowerCase(),
         password,
         role: userRole,
         isSuperAdmin: isAdmin,
-        username: username?.toLowerCase(), // ✅ FIXED
-        fullName
+        username: username.toLowerCase(),
+        fullName,
+        hasCompletedProfile: true
     });
 
     if (user.role === 'artist') {
-        await ArtistProfile.create({
-            artistId: user._id
-        });
+        await ArtistProfile.create({ artistId: user._id });
     }
 
-    const { accessToken, refreshToken, sessionId } = await generateAccessAndRefreshTokens(user._id, req);
-    const createdUser = await User.findById(user._id).select("-password");
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id, req);
+    const createdUser = await User.findById(user._id).select("-password -resetPasswordOtp");
 
-    // Send Welcome Email (Non-blocking)
     emailService.notifyWelcomeEmail(user.email, user.fullName || user.username);
 
     return res.status(201)
         .cookie("refreshToken", refreshToken, cookieOptions)
         .json(new ApiResponse(201, {
             user: createdUser,
-            accessToken,
-            sessionId
-        }, "User registered Successfully"));
+            accessToken
+        }, "User registered successfully"));
 });
 
-const loginUser = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
+// ─── Login (email OR username) ───────────────────────────────────────────────
 
-    if (!email || !password) {
-        throw new ApiError(400, "Email and password are required");
+const loginUser = asyncHandler(async (req, res) => {
+    // Accept 'identifier' (email or username) or legacy 'email' field
+    const { identifier, email, password } = req.body;
+    const loginId = (identifier || email || "").trim().toLowerCase();
+
+    if (!loginId || !password) {
+        throw new ApiError(400, "Email/username and password are required");
     }
 
-    const user = await User.findOne({ email });
+    // Try email first, then username
+    const user = await User.findOne({
+        $or: [{ email: loginId }, { username: loginId }]
+    });
 
     if (!user) {
-        throw new ApiError(404, "User does not exist");
+        throw new ApiError(401, "Invalid credentials");
+    }
+
+    if (!user.hasCompletedProfile) {
+        throw new ApiError(403, "Please complete your profile setup first");
     }
 
     const isPasswordValid = await user.isPasswordCorrect(password);
-
     if (!isPasswordValid) {
-        throw new ApiError(401, "Invalid user credentials");
+        throw new ApiError(401, "Invalid credentials");
     }
 
-    console.log("Found user, generating tokens for:", user.email);
-    const { accessToken, refreshToken, sessionId } = await generateAccessAndRefreshTokens(user._id, req);
-    
-    console.log("Locating logged in user details...");
-    const loggedInUser = await User.findById(user._id).select("-password");
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id, req);
+    const loggedInUser = await User.findById(user._id).select("-password -resetPasswordOtp");
 
-    return res
-        .status(200)
+    return res.status(200)
         .cookie("refreshToken", refreshToken, cookieOptions)
-        .json(
-            new ApiResponse(
-                200,
-                {
-                    user: loggedInUser,
-                    accessToken,
-                    sessionId
-                },
-                "User logged In Successfully"
-            )
-        );
+        .json(new ApiResponse(200, { user: loggedInUser, accessToken }, "Logged in successfully"));
 });
+
+// ─── Google OAuth ─────────────────────────────────────────────────────────────
 
 const googleAuth = asyncHandler(async (req, res) => {
     const { token, role } = req.body;
-    
-    if (!token) {
-        throw new ApiError(400, "Google token is required");
-    }
 
+    if (!token) throw new ApiError(400, "Google token is required");
+
+    let googleEmail;
     try {
         const ticket = await googleClient.verifyIdToken({
             idToken: token,
             audience: process.env.GOOGLE_CLIENT_ID
         });
-
-        const { email } = ticket.getPayload();
-
-        let user = await User.findOne({ email });
-
-        const adminEmails = (process.env.ADMIN_EMAILS || process.env.GOOGLE_MAIL_USER || "").split(",").map(e => e.trim().toLowerCase());
-        const artistEmails = (process.env.ARTIST_EMAILS || "").split(",").map(e => e.trim().toLowerCase());
-        
-        const isAdmin = adminEmails.includes(email.toLowerCase());
-        const isRestrictedArtist = artistEmails.includes(email.toLowerCase());
-        
-        if (isRestrictedArtist && role === 'client') {
-            throw new ApiError(400, "This email is reserved for artist accounts only.");
-        }
-
-        const userRole = isAdmin ? 'admin' : (isRestrictedArtist ? 'artist' : (role || 'client'));
-
-        if (!user) {
-            user = await User.create({
-                email,
-                password:crypto.randomBytes(16).toString("hex") ,
-                role: userRole,
-                isSuperAdmin: isAdmin
-            });
-            
-            if (user.role === 'artist') {
-                await ArtistProfile.create({
-                    artistId: user._id
-                });
-            }
-
-            // Send Welcome Email for new Google user
-            emailService.notifyWelcomeEmail(user.email, user.fullName || user.email);
-        }
-
-        const { accessToken, refreshToken, sessionId } = await generateAccessAndRefreshTokens(user._id, req);
-        const loggedInUser = await User.findById(user._id).select("-password");
-
-        return res
-            .status(200)
-            .cookie("refreshToken", refreshToken, cookieOptions)
-            .json(
-                new ApiResponse(
-                    200,
-                    {
-                        user: loggedInUser,
-                        accessToken,
-                        sessionId
-                    },
-                    "Google Login Successful"
-                )
-            );
-    } catch (error) {
-        console.error("Google Auth Error:", error);
-        throw new ApiError(401, "Invalid Google Token: " + (error.message || "Unknown error"));
+        googleEmail = ticket.getPayload().email;
+    } catch (err) {
+        throw new ApiError(401, "Invalid Google token");
     }
+
+    // Check if user already exists and has completed profile setup 
+    const existingUser = await User.findOne({ email: googleEmail.toLowerCase() });
+
+    if (existingUser && existingUser.hasCompletedProfile) {
+        // Returning Google user — issue tokens directly
+        const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(existingUser._id, req);
+        const loggedInUser = await User.findById(existingUser._id).select("-password -resetPasswordOtp");
+
+        return res.status(200)
+            .cookie("refreshToken", refreshToken, cookieOptions)
+            .json(new ApiResponse(200, { user: loggedInUser, accessToken }, "Google login successful"));
+    }
+
+    if (existingUser && !existingUser.hasCompletedProfile) {
+        // User started OAuth but didn't finish — prompt again
+        return res.status(200).json(new ApiResponse(200, {
+            requiresProfile: true,
+            googleEmail
+        }, "Profile setup required"));
+    }
+
+    // Brand new Google user — they must create username + password before getting a session
+    return res.status(200).json(new ApiResponse(200, {
+        requiresProfile: true,
+        googleEmail,
+        suggestedRole: role || 'client'
+    }, "Profile setup required to complete registration"));
 });
 
-// const refreshToken = asyncHandler(async (req, res) => {
-//     const oldRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+// ─── Complete Profile (Google OAuth new users) ────────────────────────────────
 
-//     if (!oldRefreshToken) {
-//         throw new ApiError(401, "Refresh token is missing");
-//     }
+const completeGoogleProfile = asyncHandler(async (req, res) => {
+    const { googleEmail, username, password, fullName, role } = req.body;
 
-//     try {
-//         const decodedToken = jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET);
-//         const refreshTokenHash = crypto.createHash('sha256').update(oldRefreshToken).digest('hex');
+    if (!googleEmail || !username || !password) {
+        throw new ApiError(400, "Google email, username, and password are required");
+    }
+    if (!/^[a-z0-9_]{3,20}$/.test(username.toLowerCase())) {
+        throw new ApiError(400, "Username must be 3-20 characters: letters, numbers, underscores only");
+    }
+    if (password.length < 8) {
+        throw new ApiError(400, "Password must be at least 8 characters");
+    }
 
-//         const session = await Session.findOne({
-//             refreshTokenHash,
-//             revoked: false
-//         });
+    // Ensure the googleEmail hasn't been taken in between
+    const existingUser = await User.findOne({ email: googleEmail.toLowerCase() });
+    if (existingUser && existingUser.hasCompletedProfile) {
+        throw new ApiError(409, "Account already exists. Please log in.");
+    }
 
-//         if (!session) {
-//             throw new ApiError(401, "Session not found or revoked");
-//         }
+    // Check username uniqueness
+    const usernameConflict = await User.findOne({ username: username.toLowerCase() });
+    if (usernameConflict) {
+        throw new ApiError(409, "Username is already taken");
+    }
 
-//         const user = await User.findById(decodedToken._id);
-//         if (!user) {
-//             throw new ApiError(401, "User not found");
-//         }
+    const adminEmails = (process.env.ADMIN_EMAILS || "")
+        .split(",")
+        .map(e => e.trim().toLowerCase());
+    const isAdmin = adminEmails.includes(googleEmail.toLowerCase());
+    const userRole = isAdmin ? 'admin' : (role === 'artist' ? 'artist' : 'client');
 
-//         // Token Rotation: Generate new tokens and update session
-//         const newRefreshToken = user.generateRefreshToken();
-//         const newRefreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+    let user;
+    if (existingUser) {
+        // Update the incomplete record
+        existingUser.username = username.toLowerCase();
+        existingUser.password = password;
+        existingUser.fullName = fullName || existingUser.fullName;
+        existingUser.hasCompletedProfile = true;
+        existingUser.role = userRole;
+        await existingUser.save();
+        user = existingUser;
+    } else {
+        user = await User.create({
+            email: googleEmail.toLowerCase(),
+            password,
+            username: username.toLowerCase(),
+            fullName,
+            role: userRole,
+            isSuperAdmin: isAdmin,
+            hasCompletedProfile: true,
+            googleEmail: googleEmail.toLowerCase()
+        });
+    }
 
-//         session.refreshTokenHash = newRefreshTokenHash;
-//         session.ip = req.ip;
-//         session.userAgent = req.headers['user-agent'];
-//         await session.save();
+    if (user.role === 'artist') {
+        const existingProfile = await ArtistProfile.findOne({ artistId: user._id });
+        if (!existingProfile) {
+            await ArtistProfile.create({ artistId: user._id });
+        }
+    }
 
-//         const accessToken = user.generateAccessToken(session._id);
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id, req);
+    const createdUser = await User.findById(user._id).select("-password -resetPasswordOtp");
 
-//         return res
-//             .status(200)
-//             .cookie("refreshToken", newRefreshToken, cookieOptions)
-//             .json(
-//                 new ApiResponse(200, { accessToken }, "Token refreshed successfully")
-//             );
-//     } catch (error) {
-//         console.error("Refresh token error:", error.message);
-//         throw new ApiError(401, "Invalid refresh token: " + error.message);
-//     }
-// }); 
+    emailService.notifyWelcomeEmail(user.email, user.fullName || user.username);
+
+    return res.status(201)
+        .cookie("refreshToken", refreshToken, cookieOptions)
+        .json(new ApiResponse(201, { user: createdUser, accessToken }, "Profile completed. Welcome!"));
+});
+
+// ─── Refresh Token ────────────────────────────────────────────────────────────
 
 const refreshToken = asyncHandler(async (req, res) => {
     const oldRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
-    // ✅ FIX: Handle first-time user (no token yet)
     if (!oldRefreshToken) {
-        return res.status(200).json(
-            new ApiResponse(200, { accessToken: null }, "No refresh token (first-time user)")
-        );
+        return res.status(200).json(new ApiResponse(200, { accessToken: null }, "No active session"));
     }
 
     try {
         const decodedToken = jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET);
         const refreshTokenHash = crypto.createHash('sha256').update(oldRefreshToken).digest('hex');
 
-        const session = await Session.findOne({
-            refreshTokenHash,
-            revoked: false
-        });
-
-        if (!session) {
-            throw new ApiError(401, "Session not found or revoked");
-        }
+        const session = await Session.findOne({ refreshTokenHash, revoked: false });
+        if (!session) throw new ApiError(401, "Session not found or revoked");
 
         const user = await User.findById(decodedToken._id);
-        if (!user) {
-            throw new ApiError(401, "User not found");
-        }
+        if (!user) throw new ApiError(401, "User not found");
 
-        // Token Rotation
         const newRefreshToken = user.generateRefreshToken();
         const newRefreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
 
@@ -306,169 +290,167 @@ const refreshToken = asyncHandler(async (req, res) => {
 
         const accessToken = user.generateAccessToken(session._id);
 
-        return res
-            .status(200)
+        return res.status(200)
             .cookie("refreshToken", newRefreshToken, cookieOptions)
-            .json(new ApiResponse(200, { accessToken }, "Token refreshed successfully"));
+            .json(new ApiResponse(200, { accessToken }, "Token refreshed"));
 
     } catch (error) {
-        console.error("Refresh token error:", error.message);
-
-        //  OPTIONAL: also handle invalid token gracefully
-        return res.status(200).json(
-            new ApiResponse(200, { accessToken: null }, "Invalid or expired refresh token")
-        );
+        return res.status(200).json(new ApiResponse(200, { accessToken: null }, "Invalid or expired session"));
     }
 });
 
+// ─── Logout ───────────────────────────────────────────────────────────────────
+
 const logout = asyncHandler(async (req, res) => {
-    const refreshToken = req.cookies.refreshToken;
-
-    if (refreshToken) {
-        const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-        await Session.findOneAndUpdate({ refreshTokenHash }, { revoked: true });
+    const oldRefreshToken = req.cookies.refreshToken;
+    if (oldRefreshToken) {
+        const hash = crypto.createHash('sha256').update(oldRefreshToken).digest('hex');
+        await Session.findOneAndUpdate({ refreshTokenHash: hash }, { revoked: true });
     }
-
     res.clearCookie("refreshToken", cookieOptions);
-
-    return res
-        .status(200)
-        .json(new ApiResponse(200, {}, "User logged out successfully"));
+    return res.status(200).json(new ApiResponse(200, {}, "Logged out successfully"));
 });
 
 const logoutAll = asyncHandler(async (req, res) => {
     await Session.updateMany({ userId: req.user._id }, { revoked: true });
     res.clearCookie("refreshToken", cookieOptions);
-
-    return res
-        .status(200)
-        .json(new ApiResponse(200, {}, "Logged out of all sessions successfully"));
+    return res.status(200).json(new ApiResponse(200, {}, "Logged out of all sessions"));
 });
+
+// ─── Get Current User ─────────────────────────────────────────────────────────
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-    return res
-        .status(200)
-        .json(new ApiResponse(200, req.user, "Current user fetched successfully"));
+    return res.status(200).json(new ApiResponse(200, req.user, "Current user fetched"));
 });
+
+// ─── Update Profile ───────────────────────────────────────────────────────────
 
 const updateProfile = asyncHandler(async (req, res) => {
     const { fullName, username, dob } = req.body;
-    
+
     const user = await User.findById(req.user._id);
     if (!user) throw new ApiError(404, "User not found");
 
     if (fullName !== undefined) user.fullName = fullName;
+
     if (username !== undefined) {
-        // Enforce lowercase
-        user.username = username.toLowerCase();
+        const cleanUsername = username.toLowerCase();
+        if (!/^[a-z0-9_]{3,20}$/.test(cleanUsername)) {
+            throw new ApiError(400, "Invalid username format");
+        }
+        // Check uniqueness (excluding self)
+        const conflict = await User.findOne({ username: cleanUsername, _id: { $ne: user._id } });
+        if (conflict) throw new ApiError(409, "Username already taken");
+        user.username = cleanUsername;
     }
+
     if (dob !== undefined) user.dob = dob;
 
-    // Handle Image Uploads via Multer
     if (req.files) {
-        if (req.files.profileImage && req.files.profileImage[0]) {
-            const profileUpload = await uploadOnCloudinary(req.files.profileImage[0].buffer);
-            if (profileUpload) user.profileImage = profileUpload.url;
+        if (req.files.profileImage?.[0]) {
+            const upload = await uploadOnCloudinary(req.files.profileImage[0].buffer);
+            if (upload) user.profileImage = upload.url;
         }
-        if (req.files.bannerImage && req.files.bannerImage[0]) {
-            const bannerUpload = await uploadOnCloudinary(req.files.bannerImage[0].buffer);
-            if (bannerUpload) user.bannerImage = bannerUpload.url;
+        if (req.files.bannerImage?.[0]) {
+            const upload = await uploadOnCloudinary(req.files.bannerImage[0].buffer);
+            if (upload) user.bannerImage = upload.url;
         }
     }
 
     await user.save({ validateBeforeSave: false });
-    
-    const updatedUser = await User.findById(user._id).select("-password");
-    
-    return res
-        .status(200)
-        .json(new ApiResponse(200, updatedUser, "Profile updated successfully"));
+    const updatedUser = await User.findById(user._id).select("-password -resetPasswordOtp");
+
+    return res.status(200).json(new ApiResponse(200, updatedUser, "Profile updated successfully"));
 });
+
+// ─── Forgot Password ──────────────────────────────────────────────────────────
 
 const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
-    
     if (!email) throw new ApiError(400, "Email is required");
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase() });
+    // Always return same message to prevent user enumeration
     if (!user) {
         return res.status(200).json(new ApiResponse(200, null, "If the email is registered, an OTP will be sent."));
     }
 
-    const otp = otpGenerator.generate(6, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false });
-    
+    const otp = otpGenerator.generate(6, {
+        upperCaseAlphabets: false,
+        specialChars: false,
+        lowerCaseAlphabets: false
+    });
+
     user.resetPasswordOtp = otp;
     user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
-    // Send Email via mail helper
+
     try {
         await sendEmail(
             email,
-            "Your Password Reset OTP",
-            `Your OTP for password reset is: ${otp}. It is valid for 15 minutes.`,
+            "Your Password Reset OTP — ArtisanConnect",
+            null,
             `
-                <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 600px; margin: 0 auto; background-color: #fdfaf7; border-radius: 24px; overflow: hidden; border: 1px solid #e5e0dc;">
-                    <div style="background-color: #3d3028; padding: 40px; text-align: center; color: #ffffff;">
-                        <h1 style="margin: 0; font-size: 24px;">Password Reset</h1>
-                    </div>
-                    <div style="padding: 40px; color: #3d3028; line-height: 1.6; text-align: center;">
-                        <p style="font-size: 16px; color: #665a52;">You requested a password reset. Use the following OTP to continue:</p>
-                        <div style="font-size: 32px; font-weight: bold; background: #e5e0dc; color: #3d3028; padding: 20px; border-radius: 16px; display: inline-block; margin: 20px 0; letter-spacing: 4px;">
-                            ${otp}
-                        </div>
-                        <p style="font-size: 14px; color: #8c7e74;">This OTP is valid for 15 minutes.</p>
-                        <p style="font-size: 12px; color: #b2a8a0; margin-top: 30px;">If you didn't request this, please ignore this email.</p>
-                    </div>
+            <div style="font-family:'Inter',system-ui,sans-serif;max-width:600px;margin:0 auto;background:#fdfaf7;border-radius:24px;overflow:hidden;border:1px solid #e5e0dc;">
+                <div style="background:#3d3028;padding:40px;text-align:center;color:#fff;">
+                    <h1 style="margin:0;font-size:24px;">Password Reset</h1>
                 </div>
+                <div style="padding:40px;color:#3d3028;line-height:1.6;text-align:center;">
+                    <p style="font-size:16px;color:#665a52;">Your OTP for password reset:</p>
+                    <div style="font-size:36px;font-weight:bold;background:#e5e0dc;color:#3d3028;padding:20px;border-radius:16px;display:inline-block;margin:20px 0;letter-spacing:8px;">${otp}</div>
+                    <p style="font-size:14px;color:#8c7e74;">Valid for 15 minutes. Do not share this code.</p>
+                </div>
+            </div>
             `
         );
-    } catch (error) {
-        throw new ApiError(500, "Failed to send OTP email. Please try again later.");
+    } catch (err) {
+        user.resetPasswordOtp = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save({ validateBeforeSave: false });
+        throw new ApiError(500, "Failed to send OTP email. Please try again.");
     }
 
-    return res.status(200).json(new ApiResponse(200, { email }, "OTP has been sent to your email."));
+    return res.status(200).json(new ApiResponse(200, { email }, "OTP sent to your email"));
 });
+
+// ─── Verify OTP ───────────────────────────────────────────────────────────────
 
 const verifyOtp = asyncHandler(async (req, res) => {
     const { email, otp } = req.body;
-    
     if (!email || !otp) throw new ApiError(400, "Email and OTP are required");
 
-    const user = await User.findOne({ 
-        email,
+    const user = await User.findOne({
+        email: email.toLowerCase(),
         resetPasswordOtp: otp,
         resetPasswordExpires: { $gt: Date.now() }
     });
 
-    if (!user) {
-        throw new ApiError(400, "Invalid or expired OTP");
-    }
+    if (!user) throw new ApiError(400, "Invalid or expired OTP");
 
-    return res.status(200).json(new ApiResponse(200, null, "OTP Verified successfully"));
+    return res.status(200).json(new ApiResponse(200, null, "OTP verified successfully"));
 });
+
+// ─── Reset Password ───────────────────────────────────────────────────────────
 
 const resetPassword = asyncHandler(async (req, res) => {
     const { email, otp, newPassword } = req.body;
-    
-    if (!email || !otp || !newPassword) throw new ApiError(400, "Missing required fields");
+    if (!email || !otp || !newPassword) throw new ApiError(400, "All fields are required");
+    if (newPassword.length < 8) throw new ApiError(400, "Password must be at least 8 characters");
 
-    const user = await User.findOne({ 
-        email,
+    const user = await User.findOne({
+        email: email.toLowerCase(),
         resetPasswordOtp: otp,
         resetPasswordExpires: { $gt: Date.now() }
     });
 
-    if (!user) {
-        throw new ApiError(400, "Invalid or expired OTP");
-    }
+    if (!user) throw new ApiError(400, "Invalid or expired OTP");
 
     user.password = newPassword;
     user.resetPasswordOtp = undefined;
     user.resetPasswordExpires = undefined;
-    
     await user.save();
 
-    return res.status(200).json(new ApiResponse(200, null, "Password reset successfully. Please login with new password."));
+    return res.status(200).json(new ApiResponse(200, null, "Password reset successfully. Please login."));
 });
 
 export {
@@ -477,6 +459,7 @@ export {
     getCurrentUser,
     updateProfile,
     googleAuth,
+    completeGoogleProfile,
     forgotPassword,
     verifyOtp,
     resetPassword,

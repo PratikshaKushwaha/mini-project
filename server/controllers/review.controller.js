@@ -8,33 +8,29 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 const createReview = asyncHandler(async (req, res) => {
     const { orderId, rating, comment } = req.body;
 
-    if (!orderId || !rating) {
-        throw new ApiError(400, "OrderId and Rating are required");
-    }
+    if (!orderId || !rating) throw new ApiError(400, "OrderId and rating are required");
+    if (rating < 1 || rating > 5) throw new ApiError(400, "Rating must be between 1 and 5");
 
     const order = await CommissionOrder.findById(orderId);
-    if (!order) {
-        throw new ApiError(404, "Order not found");
-    }
+    if (!order) throw new ApiError(404, "Order not found");
 
     if (order.clientId.toString() !== req.user._id.toString()) {
         throw new ApiError(403, "Only the client who placed the order can review it");
     }
 
-    if (order.status !== 'Completed') {
-        throw new ApiError(400, "Reviews can only be submitted for completed orders");
+    // Fixed: was checking 'Completed' (capital C) — orders use lowercase 'completed'
+    if (order.status !== 'completed') {
+        throw new ApiError(400, "Reviews can only be submitted after the order is completed");
     }
 
     const existingReview = await Review.findOne({ orderId });
-    if (existingReview) {
-        throw new ApiError(400, "Review already exists for this order");
-    }
+    if (existingReview) throw new ApiError(400, "You have already reviewed this order");
 
     const review = await Review.create({
         orderId,
         clientId: req.user._id,
         artistId: order.artistId,
-        rating,
+        rating: parseInt(rating),
         comment
     });
 
@@ -45,10 +41,9 @@ const getArtistReviews = asyncHandler(async (req, res) => {
     const { artistId } = req.params;
 
     const reviews = await Review.find({ artistId })
-        .populate("clientId", "fullName profileImage email")
+        .populate("clientId", "fullName username profileImage")
         .sort({ createdAt: -1 });
 
-    // Calculate Average Rating
     const stats = await Review.aggregate([
         { $match: { artistId: new mongoose.Types.ObjectId(artistId) } },
         { $group: { _id: null, avgRating: { $avg: "$rating" }, totalReviews: { $sum: 1 } } }
@@ -60,7 +55,4 @@ const getArtistReviews = asyncHandler(async (req, res) => {
     }, "Reviews fetched successfully"));
 });
 
-export {
-    createReview,
-    getArtistReviews
-};
+export { createReview, getArtistReviews };

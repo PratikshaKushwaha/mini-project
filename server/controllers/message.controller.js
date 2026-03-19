@@ -3,39 +3,46 @@ import { CommissionOrder } from "../models/commissionOrder.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { createInternalNotification } from "./notification.controller.js";
 
 const sendMessage = asyncHandler(async (req, res) => {
     const { id: orderId } = req.params;
     const { message, attachments } = req.body;
 
-    if (!message) {
-        throw new ApiError(400, "Message content is required");
+    // Must have either a text message, an image upload, or both
+    if (!message && !req.file) {
+        throw new ApiError(400, "Either a text message or an image is required");
     }
 
     const order = await CommissionOrder.findById(orderId);
+    if (!order) throw new ApiError(404, "Order not found");
 
-    if (!order) {
-        throw new ApiError(404, "Order not found");
-    }
+    const isParticipant =
+        order.artistId.toString() === req.user._id.toString() ||
+        order.clientId.toString() === req.user._id.toString() ||
+        req.user.role === 'admin';
 
-    // Check participation
-    if (order.artistId.toString() !== req.user._id.toString() &&
-        order.clientId.toString() !== req.user._id.toString() &&
-        req.user.role !== 'admin') {
-        throw new ApiError(403, "Not authorized to send a message to this order");
+    if (!isParticipant) throw new ApiError(403, "Not authorized to message on this order");
+
+    let imageUrl = null;
+    if (req.file) {
+        const upload = await uploadOnCloudinary(req.file.buffer);
+        if (!upload) throw new ApiError(500, "Image upload failed");
+        imageUrl = upload.url;
     }
 
     const newMessage = await Message.create({
         orderId,
         senderId: req.user._id,
-        message,
-        attachments
+        message: message || null,
+        imageUrl,
+        attachments: attachments || []
     });
 
-    // Dispatch Notification
-    const recipientId = req.user._id.toString() === order.artistId.toString() 
-        ? order.clientId 
+    // Notify the other party
+    const recipientId = req.user._id.toString() === order.artistId.toString()
+        ? order.clientId
         : order.artistId;
 
     await createInternalNotification({
@@ -46,32 +53,29 @@ const sendMessage = asyncHandler(async (req, res) => {
         link: `/orders/${orderId}`
     });
 
-    return res.status(201).json(new ApiResponse(201, newMessage, "Message sent successfully"));
+    const populated = await Message.findById(newMessage._id).populate("senderId", "email fullName username profileImage");
+
+    return res.status(201).json(new ApiResponse(201, populated, "Message sent successfully"));
 });
 
 const getOrderMessages = asyncHandler(async (req, res) => {
     const { id: orderId } = req.params;
 
     const order = await CommissionOrder.findById(orderId);
+    if (!order) throw new ApiError(404, "Order not found");
 
-    if (!order) {
-        throw new ApiError(404, "Order not found");
-    }
+    const isParticipant =
+        order.artistId.toString() === req.user._id.toString() ||
+        order.clientId.toString() === req.user._id.toString() ||
+        req.user.role === 'admin';
 
-    if (order.artistId.toString() !== req.user._id.toString() &&
-        order.clientId.toString() !== req.user._id.toString() &&
-        req.user.role !== 'admin') {
-        throw new ApiError(403, "Not authorized to view messages for this order");
-    }
+    if (!isParticipant) throw new ApiError(403, "Not authorized to view messages for this order");
 
     const messages = await Message.find({ orderId })
-        .populate("senderId", "email fullName")
-        .sort({ createdAt: 1 }); // Oldest first
+        .populate("senderId", "email fullName username profileImage")
+        .sort({ createdAt: 1 });
 
     return res.status(200).json(new ApiResponse(200, messages, "Messages fetched successfully"));
 });
 
-export {
-    sendMessage,
-    getOrderMessages
-};
+export { sendMessage, getOrderMessages };

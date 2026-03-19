@@ -5,6 +5,7 @@ import {
     getCurrentUser,
     updateProfile,
     googleAuth,
+    completeGoogleProfile,
     forgotPassword,
     verifyOtp,
     resetPassword,
@@ -15,7 +16,6 @@ import {
 import { verifyJWT } from "../middleware/auth.middleware.js";
 import { upload } from "../middleware/multer.middleware.js";
 
-
 const router = Router();
 
 router.route("/register").post(registerUser);
@@ -25,16 +25,17 @@ router.route("/logout-all").post(verifyJWT, logoutAll);
 router.route("/refresh-token").post(refreshToken);
 router.route("/me").get(verifyJWT, getCurrentUser);
 router.route("/me").put(
-    verifyJWT, 
+    verifyJWT,
     upload.fields([
         { name: 'profileImage', maxCount: 1 },
         { name: 'bannerImage', maxCount: 1 }
-    ]), 
+    ]),
     updateProfile
 );
 
 // Advanced Auth
 router.route("/google").post(googleAuth);
+router.route("/complete-profile").post(completeGoogleProfile);
 router.route("/forgot-password").post(forgotPassword);
 router.route("/verify-otp").post(verifyOtp);
 router.route("/reset-password").post(resetPassword);

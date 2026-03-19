@@ -15,14 +15,20 @@ const messageSchema = new Schema(
         },
         message: {
             type: String,
-            required: true,
             trim: true
         },
+        // Cloudinary URL for image attachments shared in chat
+        imageUrl: {
+            type: String,
+            default: null
+        },
         attachments: [{
-            type: String // URLs
+            type: String // Additional file URLs
         }]
     },
     { timestamps: true }
 );
+
+// At least one of message or imageUrl must be present (validated in controller)
 
 export const Message = mongoose.model("Message", messageSchema);

@@ -25,6 +25,10 @@ const artistProfileSchema = new Schema(
             type: Boolean,
             default: true
         },
+        startingPrice: {
+            type: Number,
+            default: null
+        },
         website: {
             type: String,
             trim: true
@@ -36,12 +40,13 @@ const artistProfileSchema = new Schema(
         twitter: {
             type: String,
             trim: true
-        },
-        profileImage: {
-            type: String // Cloudinary URL
         }
+        // NOTE: profileImage is on the User model — no duplication here
     },
     { timestamps: true }
 );
+
+// Full-text search on bio and categories
+artistProfileSchema.index({ bio: "text", categories: "text", location: "text" });
 
 export const ArtistProfile = mongoose.model("ArtistProfile", artistProfileSchema);

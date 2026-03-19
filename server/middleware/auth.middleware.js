@@ -28,12 +28,11 @@ export const verifyJWT = (req, res, next) => {
 };
 
 export const verifyRole = (roles) => {
+    // Normalize: accept string or array
+    const allowedRoles = Array.isArray(roles) ? roles : [roles];
     return (req, _, next) => {
-        if (!roles.includes(req.user?.role)) {
-            throw new ApiError(
-                403,
-                "Forbidden: You do not have the required role"
-            );
+        if (!allowedRoles.includes(req.user?.role)) {
+            return next(new ApiError(403, "Forbidden: You do not have the required role"));
         }
         next();
     };

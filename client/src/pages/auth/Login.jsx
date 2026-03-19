@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { Mail, Lock } from 'lucide-react';
+import { AtSign, Lock } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
-import api, { googleLogin } from '../../services/api';
+import { loginUser, googleLogin } from '../../services/api';
 import { setCredentials } from '../../store/authSlice';
 
 const Login = () => {
-    const [email, setEmail] = useState('');
+    const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ const Login = () => {
         setError('');
         setLoading(true);
         try {
-            const res = await api.post('/auth/login', { email, password });
+            const res = await loginUser({ identifier, password });
             const { user, accessToken } = res.data.data;
             dispatch(setCredentials({ user, accessToken }));
             toast.success('Logged in successfully!');
@@ -43,10 +43,19 @@ const Login = () => {
         try {
             setLoading(true);
             const res = await googleLogin(credentialResponse.credential);
-            const { user, accessToken } = res.data.data;
+            const data = res.data.data;
+
+            // New user: must set username + password first
+            if (data.requiresProfile) {
+                navigate('/complete-profile', {
+                    state: { googleEmail: data.googleEmail, suggestedRole: data.suggestedRole }
+                });
+                return;
+            }
+
+            const { user, accessToken } = data;
             dispatch(setCredentials({ user, accessToken }));
             toast.success('Logged in with Google!');
-            
             if (user.role === 'admin') navigate('/admin-dashboard');
             else if (user.role === 'artist') navigate('/artist-dashboard');
             else navigate('/client-dashboard');
@@ -54,6 +63,7 @@ const Login = () => {
             const message = err.response?.data?.message || 'Google Login failed';
             toast.error(message);
             setError(message);
+        } finally {
             setLoading(false);
         }
     };
@@ -99,17 +109,17 @@ const Login = () => {
                         {error && <div className="text-red-500 text-sm text-center bg-red-50 py-2 rounded">{error}</div>}
                         
                         <div className="space-y-1">
-                            <label className="block text-sm font-semibold text-text-brown ml-1">Email</label>
+                            <label className="block text-sm font-semibold text-text-brown ml-1">Email or Username</label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <Mail className="h-5 w-5 text-stone-400" />
+                                    <AtSign className="h-5 w-5 text-stone-400" />
                                 </div>
                                 <input
-                                    type="email"
+                                    type="text"
                                     required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="example@email.com"
+                                    value={identifier}
+                                    onChange={(e) => setIdentifier(e.target.value)}
+                                    placeholder="email@example.com or username"
                                     className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-btn-brown focus:border-transparent outline-none transition"
                                 />
                             </div>

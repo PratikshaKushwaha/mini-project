@@ -25,6 +25,14 @@ const portfolioItemSchema = new Schema(
             type: Number,
             default: null
         },
+        isAvailable: {
+            type: Boolean,
+            default: true // Artwork is available for direct purchase
+        },
+        likes: [{
+            type: Schema.Types.ObjectId,
+            ref: "User"
+        }],
         categoryId: {
             type: Schema.Types.ObjectId,
             ref: "Category"
@@ -32,5 +40,8 @@ const portfolioItemSchema = new Schema(
     },
     { timestamps: true }
 );
+
+// Full-text search on artwork title and description
+portfolioItemSchema.index({ title: "text", description: "text" });
 
 export const PortfolioItem = mongoose.model("PortfolioItem", portfolioItemSchema);

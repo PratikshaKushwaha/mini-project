@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { Mail, Lock, User } from 'lucide-react';
+import { Mail, Lock, User, AtSign } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
-import api, { googleLogin } from '../../services/api';
+import { registerUser, googleLogin } from '../../services/api';
 import { setCredentials } from '../../store/authSlice';
 
 const Register = () => {
@@ -33,9 +33,12 @@ const Register = () => {
         setError('');
         setLoading(true);
         try {
-            await api.post('/auth/register', formData);
-            toast.success('Account created! Please log in.');
-            navigate('/login');
+            const res = await registerUser(formData);
+            const { user, accessToken } = res.data.data;
+            dispatch(setCredentials({ user, accessToken }));
+            toast.success('Account created! Welcome 🎨');
+            if (user.role === 'artist') navigate('/artist-dashboard');
+            else navigate('/client-dashboard');
         } catch (err) {
             const message = err.response?.data?.message || 'Registration failed';
             toast.error(message);
@@ -49,10 +52,19 @@ const Register = () => {
         try {
             setLoading(true);
             const res = await googleLogin(credentialResponse.credential, formData.role);
-            const { user, accessToken } = res.data.data;
+            const data = res.data.data;
+
+            // New user needs profile setup
+            if (data.requiresProfile) {
+                navigate('/complete-profile', {
+                    state: { googleEmail: data.googleEmail, suggestedRole: formData.role }
+                });
+                return;
+            }
+
+            const { user, accessToken } = data;
             dispatch(setCredentials({ user, accessToken }));
             toast.success('Signed up with Google!');
-            
             if (user.role === 'admin') navigate('/admin-dashboard');
             else if (user.role === 'artist') navigate('/artist-dashboard');
             else navigate('/client-dashboard');
@@ -60,6 +72,7 @@ const Register = () => {
             const message = err.response?.data?.message || 'Google signup failed';
             toast.error(message);
             setError(message);
+        } finally {
             setLoading(false);
         }
     };
