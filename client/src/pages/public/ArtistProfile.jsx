@@ -25,7 +25,7 @@ const ArtistProfile = () => {
                 setProfile(profileRes.data.data);
 
                 // Fetch portfolio/artworks
-                const portfolioRes = await api.get(`/portfolio/artist/${id}`);
+                const portfolioRes = await api.get(`/portfolio/${id}`);
                 setPortfolio(portfolioRes.data.data);
 
                 // Fetch reviews
@@ -181,7 +181,7 @@ const ArtistProfile = () => {
                                 <div key={item._id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-stone-100 group">
                                     <div className="h-64 relative overflow-hidden bg-stone-100">
                                         <img 
-                                            src={item.mediaUrl} 
+                                            src={item.imageUrl} 
                                             alt={item.title} 
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                         />

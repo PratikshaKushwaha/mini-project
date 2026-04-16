@@ -30,14 +30,18 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
         formData.append('tag', tag);
         if (image) formData.append('image', image);
 
-        await onSubmit(formData);
-        
-        setLoading(false);
-        setTitle('');
-        setBody('');
-        setImage(null);
-        setPreview(null);
-        onClose();
+        try {
+            await onSubmit(formData);
+            setTitle('');
+            setBody('');
+            setImage(null);
+            setPreview(null);
+            onClose();
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -106,8 +110,8 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
                             </select>
                         </div>
 
-                        <Button type="submit" disabled={loading || !title || !body}>
-                            {loading ? 'Posting...' : 'Post'}
+                        <Button type="submit" isLoading={loading} disabled={!title || !body}>
+                            Post
                         </Button>
                     </div>
                 </form>

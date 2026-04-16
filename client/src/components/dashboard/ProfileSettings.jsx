@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { updateArtistProfile, getArtistProfile } from '../../services/api';
+import { updateArtistProfile, getArtistProfile, updateProfile } from '../../services/api';
 import api from '../../services/api';
 import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';

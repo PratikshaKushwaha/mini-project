@@ -92,7 +92,7 @@ const NotificationDropdown = () => {
                             notifications.map((notification) => (
                                 <div 
                                     key={notification._id}
-                                    className={`p-4 border-b border-stone-50 transition hover:bg-stone-50 flex gap-3 relative ${!notification.isRead ? 'bg-btn-brown/[0.03]' : ''}`}
+                                    className={`p-4 border-b border-stone-50 transition group hover:bg-stone-50 flex gap-3 relative ${!notification.isRead ? 'bg-btn-brown/[0.03]' : ''}`}
                                 >
                                     <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${notification.isRead ? 'bg-transparent' : 'bg-btn-brown'}`} />
                                     <div className="flex-1">

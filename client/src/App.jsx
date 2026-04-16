@@ -18,7 +18,7 @@ import AdminDashboard from './pages/dashboard/AdminDashboard';
 import OrderDetail from './pages/orders/OrderDetail';
 import NotFound from './pages/public/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
-import BrowseArtists from './pages/public/BrowseArtists';
+import Discover from './pages/public/Discover';
 import Community from './pages/public/Community';
 import About from './pages/public/About';
 import { Toaster } from 'react-hot-toast';
@@ -43,13 +43,13 @@ function AppLayout() {
   const location = useLocation();
   const pathname = location.pathname;
 
-  const isPublicPage = PUBLIC_ONLY_ROUTES.some(route =>
-    pathname === route || pathname.startsWith(route + '/')
+  const isPublicRoute = PUBLIC_ONLY_ROUTES.some(route =>
+    pathname === route || (route !== '/' && pathname.startsWith(route + '/'))
   );
 
   return (
     <div className="flex flex-col min-h-screen bg-stone-50 font-inter text-deep-cocoa">
-      {isPublicPage && !user ? <PublicNavbar /> : <Navbar />}
+      {isPublicRoute && !user ? <PublicNavbar /> : <Navbar />}
 
       <main className="flex-grow">
         <Routes>
@@ -60,8 +60,8 @@ function AppLayout() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/community" element={<Community />} />
           <Route path="/about" element={<About />} />
-          <Route path="/discover" element={<BrowseArtists />} />
-          <Route path="/artists" element={<BrowseArtists />} />
+          <Route path="/discover" element={<Discover />} />
+          <Route path="/artists" element={<Discover />} />
           <Route path="/artists/:id" element={<ArtistProfile />} />
 
           <Route path="/artist-dashboard" element={

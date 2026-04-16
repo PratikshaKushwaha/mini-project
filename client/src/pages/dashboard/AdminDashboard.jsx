@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import api, { getAdminStats, getAdminUsers, deleteAdminUser } from '../../services/api';
+import { getAdminStats, getAdminUsers, deleteAdminUser } from '../../services/api';
 import { Users, Palette, ShoppingBag, Folder, Trash2, ShieldAlert, AlertTriangle, CheckCircle } from 'lucide-react';
 import Button from '../../components/Button';
 
@@ -13,7 +13,7 @@ const AdminOverview = ({ stats }) => (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex items-center gap-4">
                 <div className="p-4 bg-btn-brown/10 text-btn-brown rounded-xl"><Users className="w-6 h-6" /></div>
                 <div>
-                    <div className="text-2xl font-bold text-text-brown">{stats?.totalUsers || 0}</div>
+                    <div className="text-2xl font-bold text-text-brown">{stats?.users ?? stats?.totalUsers ?? 0}</div>
                     <div className="text-sm font-medium text-stone-500">Total Users</div>
                 </div>
             </div>
@@ -27,14 +27,14 @@ const AdminOverview = ({ stats }) => (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex items-center gap-4">
                 <div className="p-4 bg-blue-500/10 text-blue-600 rounded-xl"><ShoppingBag className="w-6 h-6" /></div>
                 <div>
-                    <div className="text-2xl font-bold text-text-brown">{stats?.totalOrders || 0}</div>
+                    <div className="text-2xl font-bold text-text-brown">{stats?.orders ?? stats?.totalOrders ?? 0}</div>
                     <div className="text-sm font-medium text-stone-500">Total Orders</div>
                 </div>
             </div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex items-center gap-4">
                 <div className="p-4 bg-green-500/10 text-green-600 rounded-xl"><Folder className="w-6 h-6" /></div>
                 <div>
-                    <div className="text-2xl font-bold text-text-brown">{stats?.totalCategories || 0}</div>
+                    <div className="text-2xl font-bold text-text-brown">{stats?.totalCategories || stats?.categories || 0}</div>
                     <div className="text-sm font-medium text-stone-500">Active Categories</div>
                 </div>
             </div>
@@ -49,7 +49,10 @@ const UserManagement = () => {
     const fetchUsers = async () => {
         try {
             const res = await getAdminUsers();
-            setUsers(res.data.data);
+            // Backend returns { users: [...], totalPages, currentPage, totalUsers }
+            // Support both array response and paginated object response
+            const payload = res.data.data;
+            setUsers(Array.isArray(payload) ? payload : (payload?.users || []));
         } catch (error) {
             console.error("Failed to fetch users");
         } finally {

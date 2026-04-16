@@ -5,14 +5,34 @@ import {
     getOrderById, 
     updateOrderStatus, 
     getOrderMessages, 
-    sendMessage 
+    sendMessage,
+    submitReview
 } from '../../services/api';
-import { Send, Clock, FileText, CheckCircle, AlertCircle, Star, AlertTriangle, List } from 'lucide-react';
-import { submitReview } from '../../services/api';
+import { 
+    Send, 
+    Clock, 
+    FileText, 
+    CheckCircle2, 
+    Star, 
+    Paperclip,
+    ChevronLeft,
+    Download,
+    MoreVertical,
+    MessageSquare,
+    User,
+    Calendar
+} from 'lucide-react';
 import ReviewModal from '../../components/ReviewModal';
 import toast from 'react-hot-toast';
 import Button from '../../components/Button';
 
+/**
+ * @component OrderDetail
+ * @description The comprehensive view for a single commission order.
+ * Manages the transition of order states, real-time messaging, and final asset delivery.
+ * Serves both Artist and Client roles with context-aware action triggers.
+ * @returns {JSX.Element} The rendered Order Detail page.
+ */
 const OrderDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -29,6 +49,7 @@ const OrderDetail = () => {
     
     const messagesEndRef = useRef(null);
 
+    /** @description Synchronizes the component with the latest order state and project thread. */
     const fetchOrderAndMessages = async () => {
         try {
             const [orderRes, msgsRes] = await Promise.all([
@@ -36,32 +57,33 @@ const OrderDetail = () => {
                 getOrderMessages(id)
             ]);
             setOrder(orderRes.data.data);
-            setMessages(msgsRes.data.data);
+            setMessages(msgsRes.data.data || []);
         } catch (error) {
             console.error(error);
             if (error.response?.status === 403 || error.response?.status === 404) {
-               navigate('/'); // Redirect if unauthorized or not found
+               navigate('/discover');
             }
         } finally {
             setLoading(false);
         }
     };
 
+    /** @description Initializes polling for real-time discussion thread updates. */
     useEffect(() => {
         fetchOrderAndMessages();
-        // Optional: Implement simple polling for MVP if websockets aren't setup
         const interval = setInterval(() => {
-            getOrderMessages(id).then(res => setMessages(res.data.data)).catch(console.error);
-        }, 10000);
+            getOrderMessages(id).then(res => setMessages(res.data.data || [])).catch(console.error);
+        }, 15000);
         
         return () => clearInterval(interval);
     }, [id]);
 
+    /** @description Auto-scrolls to the latest message in the thread. */
     useEffect(() => {
-        // Auto scroll to bottom
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    /** @description Publishes a new message to the project discussion thread. */
     const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
@@ -70,31 +92,34 @@ const OrderDetail = () => {
         try {
             await sendMessage(id, { message: newMessage });
             setNewMessage("");
-            // Refresh messages
             const msgsRes = await getOrderMessages(id);
-            setMessages(msgsRes.data.data);
+            setMessages(msgsRes.data.data || []);
         } catch (error) {
-            console.error("Failed to send message", error);
+            toast.error("Message delivery failed");
         } finally {
             setSending(false);
         }
     };
 
-    const handleUpdateStatus = async (newStatus) => {
+    /** 
+     * @description Advances the order lifecycle.
+     * Triggers the review modal upon successful completion for clients.
+     */
+    const handleUpdateStatus = async (newStatus, data = {}) => {
         try {
-            await updateOrderStatus(id, newStatus);
-            // Refresh order
-            const orderRes = await getOrderById(id);
-            setOrder(orderRes.data.data);
+            await updateOrderStatus(id, newStatus, data);
+            toast.success(`Success: ${newStatus.replace('_', ' ')}`);
+            await fetchOrderAndMessages();
 
-            if (newStatus === 'Completed' && isClient) {
+            if (newStatus === 'completed' && isClient) {
                 setIsReviewModalOpen(true);
             }
         } catch (error) {
-            alert(error.response?.data?.message || 'Failed to update status');
+            toast.error(error.response?.data?.message || 'Update failed');
         }
     };
 
+    /** @description Finishes the order and publishes user review to artist profile. */
     const handleSubmitReview = async (reviewData) => {
         try {
             await submitReview({
@@ -102,239 +127,286 @@ const OrderDetail = () => {
                 ...reviewData
             });
             setIsReviewModalOpen(false);
-            alert("Thank you for your review!");
+            toast.success("Review published!");
+            fetchOrderAndMessages();
         } catch (error) {
-            alert(error.response?.data?.message || 'Failed to submit review');
+            toast.error('Review submission failed');
         }
     };
 
+    /** @description Handles the high-stakes final delivery of assets by the artist. */
     const handleDeliver = async (e) => {
         e.preventDefault();
         if (!deliverableUrl) return;
         setDeliverLoading(true);
         try {
-            // Updated to use the new deliverableFiles array in the status update call
-            await updateOrderStatus(id, 'completed', { deliverableFiles: [deliverableUrl] });
-            toast.success("Work delivered successfully!");
-            const orderRes = await getOrderById(id);
-            setOrder(orderRes.data.data);
+            await handleUpdateStatus('completed', { deliverableFiles: [deliverableUrl] });
             setDeliverableUrl("");
-        } catch (error) {
-            toast.error("Failed to deliver work");
         } finally {
             setDeliverLoading(false);
         }
     };
 
-    if (loading) return <div className="text-center py-20 text-muted-taupe">Loading order details...</div>;
+    if (loading) return (
+        <div className="min-h-screen bg-stone-50 animate-pulse p-10">
+            <div className="max-w-7xl mx-auto space-y-8">
+                <div className="h-12 w-48 bg-stone-200 rounded-2xl"></div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[600px]">
+                    <div className="lg:col-span-1 bg-white rounded-[2.5rem] border border-stone-200 shadow-sm"></div>
+                    <div className="lg:col-span-2 bg-white rounded-[2.5rem] border border-stone-200 shadow-sm"></div>
+                </div>
+            </div>
+        </div>
+    );
+    
     if (!order) return null;
 
-    const isClient = user?._id === order.clientId._id;
-    const isArtist = user?._id === order.artistId._id;
+    const isClient = user?._id === (order.clientId?._id || order.clientId);
+    const isArtist = user?._id === (order.artistId?._id || order.artistId);
 
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'pending': return 'bg-yellow-100 text-yellow-800';
-            case 'accepted': return 'bg-blue-100 text-blue-800';
-            case 'in_progress': return 'bg-indigo-100 text-indigo-800';
-            case 'completed': return 'bg-green-100 text-green-800';
-            case 'rejected': 
-            case 'cancelled': return 'bg-red-100 text-red-800';
-            default: return 'bg-stone-100 text-stone-800';
-        }
+    const statusSteps = [
+        { id: 'pending', label: 'Requested' },
+        { id: 'accepted', label: 'Approved' },
+        { id: 'in_progress', label: 'Processing' },
+        { id: 'completed', label: 'Delivered' }
+    ];
+
+    const currentStepIndex = statusSteps.findIndex(s => s.id === order.status);
+    const isFailed = ['rejected', 'cancelled'].includes(order.status);
+
+    /** @description Returns semantic visual classes based on order state. */
+    const getStatusTheme = (status) => {
+        const theme = {
+            pending: 'text-amber-700 bg-amber-50 border-amber-100',
+            accepted: 'text-emerald-700 bg-emerald-50 border-emerald-100',
+            in_progress: 'text-indigo-700 bg-indigo-50 border-indigo-100',
+            completed: 'text-stone-700 bg-stone-50 border-stone-200',
+            rejected: 'text-red-700 bg-red-50 border-red-100',
+            cancelled: 'text-stone-400 bg-stone-50 border-stone-100',
+        };
+        return theme[status] || theme.pending;
     };
 
     return (
-        <div className="bg-stone-50 min-h-screen py-10">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                
-                <button onClick={() => navigate(-1)} className="text-stone-500 hover:text-text-brown mb-6 flex items-center gap-1 font-medium transition">
-                    ← Back to Dashboard
-                </button>
-
-                <div className="flex flex-col lg:flex-row gap-8 h-[calc(100vh-200px)] min-h-[600px]">
-                    
-                    {/* Left Pane: Order Details */}
-                    <div className="lg:w-1/3 bg-white rounded-2xl shadow-sm border border-stone-200 flex flex-col overflow-hidden">
-                        <div className="bg-text-brown p-6 text-white shrink-0">
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h2 className="text-2xl font-playfair font-bold">Order #{order._id.substring(order._id.length - 6).toUpperCase()}</h2>
-                                    <p className="text-stone-300 text-sm">{order.serviceId?.title || 'Custom Service'}</p>
-                                </div>
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusColor(order.status)}`}>
-                                    {order.status}
-                                </span>
-                            </div>
-                            <div className="text-3xl font-bold">${order.serviceId?.basePrice?.toFixed(2) || '0.00'}</div>
+        <div className="bg-[#fdfaf7] min-h-screen">
+            {/* Header / Sub-Nav */}
+            <div className="bg-white/80 backdrop-blur-md border-b border-stone-200 sticky top-0 z-20">
+                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+                    <button onClick={() => navigate(-1)} className="flex items-center gap-2 group text-stone-500 hover:text-deep-cocoa transition font-bold text-sm">
+                        <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center group-hover:bg-deep-cocoa group-hover:text-white transition">
+                            <ChevronLeft size={16} />
                         </div>
+                        Back to Portal
+                    </button>
+                    <div className="flex items-center gap-3">
+                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusTheme(order.status)}`}>
+                            {order.status.replace('_', ' ')}
+                        </div>
+                        <MoreVertical size={20} className="text-stone-300" />
+                    </div>
+                </div>
+            </div>
 
-                        <div className="p-6 flex-1 overflow-y-auto space-y-6">
-                            
-                            {/* Actions based on role and status */}
-                            <div className="bg-stone-50 p-4 rounded-xl border border-stone-100 space-y-3">
-                                <h3 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Available Actions</h3>
-                                
-                                {isArtist && order.status === 'pending' && (
-                                    <div className="flex gap-2">
-                                        <Button className="flex-1" onClick={() => handleUpdateStatus('accepted')}>Accept</Button>
-                                        <Button variant="outline" className="flex-1 border-red-200 text-red-600 hover:bg-red-50" onClick={() => handleUpdateStatus('rejected')}>Reject</Button>
-                                    </div>
-                                )}
+            <div className="max-w-7xl mx-auto px-6 py-10">
+                {/* Visual Status Tracker */}
+                {!isFailed && (
+                   <div className="bg-white rounded-[2rem] border border-stone-200 p-8 mb-8 shadow-sm">
+                       <div className="flex justify-between relative max-w-4xl mx-auto">
+                           {/* Tracker Line */}
+                           <div className="absolute top-5 left-0 w-full h-0.5 bg-stone-100 -z-10"></div>
+                           <div 
+                               className="absolute top-5 left-0 h-0.5 bg-deep-cocoa transition-all duration-1000 -z-10" 
+                               style={{ width: `${(currentStepIndex / (statusSteps.length - 1)) * 100}%` }}
+                           ></div>
 
-                                {isArtist && order.status === 'accepted' && (
-                                    <Button className="w-full" onClick={() => handleUpdateStatus('in_progress')}>Mark In Progress</Button>
-                                )}
+                           {statusSteps.map((step, idx) => {
+                               const isActive = idx <= currentStepIndex;
+                               return (
+                                   <div key={step.id} className="flex flex-col items-center gap-3">
+                                       <div className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-md transition-all ${
+                                           isActive ? 'bg-deep-cocoa text-white' : 'bg-stone-100 text-stone-300'
+                                       }`}>
+                                           {isActive ? <CheckCircle2 size={18} /> : <span>{idx + 1}</span>}
+                                       </div>
+                                       <span className={`text-[10px] font-black uppercase tracking-tighter ${isActive ? 'text-deep-cocoa' : 'text-stone-300'}`}>
+                                           {step.label}
+                                       </span>
+                                   </div>
+                               );
+                           })}
+                       </div>
+                   </div>
+                )}
 
-                                {isArtist && order.status === 'in_progress' && (
-                                    <form onSubmit={handleDeliver} className="space-y-3 pt-2">
-                                        <div className="text-xs font-bold text-stone-500 mb-1">FINAL DELIVERABLE URL</div>
-                                        <input 
-                                            type="url" 
-                                            placeholder="Paste high-res link (Google Drive, Dropbox, Cloudinary)" 
-                                            value={deliverableUrl}
-                                            onChange={(e) => setDeliverableUrl(e.target.value)}
-                                            required
-                                            className="w-full text-sm p-3 border border-stone-200 rounded-lg focus:ring-1 focus:ring-btn-brown"
-                                        />
-                                        <Button type="submit" className="w-full bg-btn-brown shadow-md" disabled={deliverLoading}>
-                                            {deliverLoading ? 'Delivering...' : 'Submit Final Delivery'}
-                                        </Button>
-                                    </form>
-                                )}
-
-                                {isClient && order.status === 'in_progress' && (
-                                    <div className="space-y-2">
-                                        <Button className="w-full bg-green-600 hover:bg-green-700 shadow-md" onClick={() => handleUpdateStatus('completed')}>
-                                            <CheckCircle className="w-4 h-4 mr-2 inline" /> Finish & Accept
-                                        </Button>
-                                    </div>
-                                )}
-                                
-                                {isClient && order.status === 'pending' && (
-                                    <Button variant="outline" className="w-full border-red-200 text-red-600 hover:bg-red-50" onClick={() => handleUpdateStatus('cancelled')}>
-                                        Cancel Request
-                                    </Button>
-                                )}
-
-                                {(order.status === 'completed' || order.status === 'cancelled' || order.status === 'rejected') && (
-                                    <div className="text-center text-sm font-medium text-stone-500 py-2">
-                                        No further actions available.
-                                    </div>
-                                )}
+                <div className="flex flex-col lg:flex-row gap-8 h-auto lg:h-[700px] items-stretch">
+                    
+                    {/* Left: Project Sidebar */}
+                    <div className="lg:w-[380px] flex flex-col gap-6 shrink-0">
+                        {/* Summary Card */}
+                        <div className="bg-white rounded-[2.5rem] border border-stone-200 shadow-sm overflow-hidden flex flex-col">
+                            <div className="p-8 bg-deep-cocoa text-white">
+                                <h2 className="text-2xl font-playfair font-bold mb-1 truncate">{order.title}</h2>
+                                <p className="text-stone-400 text-xs font-bold uppercase tracking-widest">Case ID: {order._id.toUpperCase()}</p>
+                                <div className="mt-6 flex items-baseline gap-2">
+                                    <span className="text-sm opacity-60">Revenue:</span>
+                                    <span className="text-3xl font-black font-playfair">₹{order.price || '0'}</span>
+                                </div>
                             </div>
 
-                            {/* Details List */}
-                            <div className="space-y-4">
-                                
-                                {order.statusHistory && order.statusHistory.length > 0 && (
-                                    <div className="mb-6">
-                                        <span className="flex items-center gap-2 text-sm font-bold text-deep-cocoa mb-4"><List className="w-4 h-4 text-stone-400"/> Order Journey</span>
-                                        <div className="relative border-l-2 border-stone-200 ml-3 space-y-6">
-                                            {order.statusHistory.map((historyItem, idx) => (
-                                                <div key={idx} className="relative pl-6">
-                                                    <div className="absolute w-3 h-3 bg-btn-brown rounded-full mt-1.5 -left-[7px] border-2 border-white"></div>
-                                                    <div className="flex flex-col">
-                                                        <span className={`text-xs font-bold uppercase tracking-wide inline-block w-max px-2 py-0.5 rounded ${getStatusColor(historyItem.status)} mb-1`}>
-                                                            {historyItem.status.replace('_', ' ')}
-                                                        </span>
-                                                        <span className="text-xs text-stone-500">
-                                                            {new Date(historyItem.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ))}
+                            <div className="p-8 flex-1 overflow-y-auto space-y-8">
+                                {/* Roles */}
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center group">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-cat-cream flex items-center justify-center text-text-brown">
+                                                <User size={20} />
+                                            </div>
+                                            <div>
+                                                <div className="text-[10px] text-stone-400 font-bold uppercase tracking-tight">Client Contact</div>
+                                                <div className="text-sm font-bold text-deep-cocoa truncate">{order.clientId?.fullName || order.clientId?.username}</div>
+                                            </div>
                                         </div>
                                     </div>
-                                )}
-                                
-                                <div className="border-t border-stone-100 pt-4">
-                                    <span className="flex items-center gap-2 text-sm font-bold text-deep-cocoa mb-1"><FileText className="w-4 h-4 text-stone-400"/> Title & Description</span>
-                                    <p className="text-sm font-medium text-stone-800 mb-1">{order.title}</p>
-                                    <p className="text-sm text-stone-600 bg-stone-50 p-3 rounded-lg border border-stone-100 whitespace-pre-wrap">
-                                        {order.description}
-                                    </p>
+                                    <div className="flex justify-between items-center group">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center text-deep-cocoa">
+                                                <Star size={20} />
+                                            </div>
+                                            <div>
+                                                <div className="text-[10px] text-stone-400 font-bold uppercase tracking-tight">Artist Primary</div>
+                                                <div className="text-sm font-bold text-deep-cocoa truncate">{order.artistId?.fullName || order.artistId?.username}</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                {order.deliverableFiles && order.deliverableFiles.length > 0 && (
-                                    <div className="bg-btn-brown/5 p-4 rounded-xl border border-btn-brown/10">
-                                        <span className="flex items-center gap-2 text-sm font-bold text-deep-cocoa mb-2 text-btn-brown">
-                                            <CheckCircle className="w-4 h-4"/> WORK DELIVERED
-                                        </span>
-                                        <div className="space-y-2">
-                                            {order.deliverableFiles.map((file, idx) => (
-                                                <a 
-                                                    key={idx} 
-                                                    href={file} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-2 text-sm text-deep-cocoa hover:underline font-medium"
-                                                >
-                                                    <FileText className="w-4 h-4" /> Download Artwork #{idx + 1}
-                                                </a>
-                                            ))}
+                                {/* Order Details */}
+                                <div className="space-y-6 pt-4 border-t border-stone-100">
+                                    <div>
+                                        <h4 className="flex items-center gap-2 text-[10px] font-black uppercase text-stone-400 tracking-widest mb-3">
+                                            <Calendar size={14}/> Deadline
+                                        </h4>
+                                        <p className="text-sm font-bold text-deep-cocoa">
+                                            {new Date(order.deadline).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <h4 className="flex items-center gap-2 text-[10px] font-black uppercase text-stone-400 tracking-widest mb-3">
+                                            <FileText size={14}/> Requirements
+                                        </h4>
+                                        <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100 text-sm text-stone-600 leading-relaxed max-h-48 overflow-y-auto scrollbar-hide">
+                                            {order.description}
                                         </div>
                                     </div>
-                                )}
-                                {order.deadline && (
-                                    <div>
-                                        <span className="flex items-center gap-2 text-sm font-bold text-deep-cocoa mb-1"><Clock className="w-4 h-4 text-stone-400"/> Deadline</span>
-                                        <p className="text-sm text-stone-600">{new Date(order.deadline).toLocaleDateString()}</p>
-                                    </div>
-                                )}
-                                <div>
-                                    <span className="flex items-center gap-2 text-sm font-bold text-deep-cocoa mb-1">Participants</span>
-                                    <div className="text-sm text-stone-600">
-                                        <span className="font-medium text-text-brown">Client:</span> {order.clientId?.email} <br/>
-                                        <span className="font-medium text-text-brown">Artist:</span> {order.artistId?.email}
+
+                                    {/* Action Buttons */}
+                                    <div className="space-y-3 pt-2">
+                                        {isArtist && order.status === 'pending' && (
+                                            <div className="flex gap-2">
+                                                <button onClick={() => handleUpdateStatus('accepted')} className="flex-1 bg-deep-cocoa text-white py-3.5 rounded-2xl text-xs font-black shadow-lg shadow-stone-200">Approve</button>
+                                                <button onClick={() => handleUpdateStatus('rejected')} className="flex-1 border border-red-50 text-red-500 py-3.5 rounded-2xl text-xs font-black hover:bg-red-50 text-stone-600">Decline</button>
+                                            </div>
+                                        )}
+                                        {isArtist && order.status === 'accepted' && (
+                                            <button onClick={() => handleUpdateStatus('in_progress')} className="w-full bg-indigo-600 text-white py-4 rounded-2xl text-xs font-black shadow-lg shadow-indigo-100">Start Order</button>
+                                        )}
+                                        {isArtist && order.status === 'in_progress' && (
+                                            <div className="space-y-3">
+                                                <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200">
+                                                    <div className="text-[10px] font-black uppercase text-stone-400 tracking-widest mb-2">Delivery URL</div>
+                                                    <input 
+                                                        type="url" 
+                                                        className="w-full text-xs p-3 bg-white border border-stone-200 rounded-xl focus:ring-1 focus:ring-deep-cocoa"
+                                                        placeholder="Result link..."
+                                                        value={deliverableUrl}
+                                                        onChange={(e) => setDeliverableUrl(e.target.value)}
+                                                    />
+                                                </div>
+                                                <button 
+                                                    onClick={handleDeliver} 
+                                                    disabled={deliverLoading || !deliverableUrl}
+                                                    className="w-full bg-green-600 text-white py-4 rounded-2xl text-xs font-black shadow-lg shadow-green-100 disabled:opacity-50"
+                                                >
+                                                    {deliverLoading ? 'Publishing...' : 'Complete & Deliver'}
+                                                </button>
+                                            </div>
+                                        )}
+                                        {isClient && order.status === 'pending' && (
+                                            <button onClick={() => handleUpdateStatus('cancelled')} className="w-full border border-red-50 text-red-500 py-4 rounded-2xl text-xs font-black hover:bg-red-50">Cancel Request</button>
+                                        )}
+                                        
+                                        {order.deliverableFiles?.length > 0 && (
+                                            <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100 text-emerald-800">
+                                                <h4 className="text-[10px] font-black uppercase text-emerald-600 tracking-widest mb-3 flex items-center gap-2">
+                                                    <CheckCircle2 size={14}/> Final Files
+                                                </h4>
+                                                <div className="space-y-3">
+                                                    {order.deliverableFiles.map((file, idx) => (
+                                                        <a key={idx} href={file} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between bg-white px-4 py-3 rounded-xl border border-emerald-200 text-xs font-bold hover:shadow-md transition">
+                                                            Download Artwork
+                                                            <Download size={14} />
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Right Pane: Chat Interface */}
-                    <div className="lg:w-2/3 bg-white rounded-2xl shadow-sm border border-stone-200 flex flex-col overflow-hidden">
-                        
-                        {/* Chat Header */}
-                        <div className="p-4 border-b border-stone-200 bg-stone-50/80 flex items-center justify-between shrink-0">
-                            <div>
-                                <h3 className="font-bold text-deep-cocoa">Project Chat</h3>
-                                <p className="text-xs text-stone-500">
-                                    Discuss details with {isClient ? 'the artist' : 'your client'}
-                                </p>
+                    {/* Right: Message Center */}
+                    <div className="flex-1 bg-white rounded-[2.5rem] border border-stone-200 shadow-sm overflow-hidden flex flex-col relative">
+                        {/* Info Bar */}
+                        <div className="px-8 py-6 border-b border-stone-100 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full bg-cat-cream flex items-center justify-center text-text-brown">
+                                    <MessageSquare size={18} />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-deep-cocoa text-sm">Project Communication</h3>
+                                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-tight">Direct Thread</p>
+                                </div>
                             </div>
-                            <div className="w-8 h-8 rounded-full bg-btn-brown/10 flex items-center justify-center text-btn-brown">
-                                <AlertCircle className="w-4 h-4" />
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-stone-50 rounded-lg text-[10px] font-bold text-stone-500">
+                                <Clock size={12} />
+                                Real-time Sync
                             </div>
                         </div>
 
-                        {/* Chat Messages */}
-                        <div className="flex-1 p-6 overflow-y-auto bg-stone-50/30 space-y-4">
+                        {/* Messages Area */}
+                        <div className="flex-1 overflow-y-auto p-12 space-y-6 bg-stone-50/20">
                             {messages.length === 0 ? (
-                                <div className="h-full flex items-center justify-center text-stone-400 italic text-sm">
-                                    No messages yet. Start the conversation!
+                                <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
+                                    <div className="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mb-6">
+                                        <MessageSquare size={32} />
+                                    </div>
+                                    <h4 className="font-playfair text-xl font-bold mb-2">Start the Brief</h4>
+                                    <p className="text-xs max-w-xs">Ask questions, share references, or just say hello to begin the creative process.</p>
                                 </div>
                             ) : (
-                                messages.map(msg => {
-                                    const isMine = msg.senderId?._id === user?._id;
+                                messages.map((msg, i) => {
+                                    const isMine = msg.senderId?._id === user?._id || msg.senderId === user?._id;
+                                    const showHeader = i === 0 || messages[i-1].senderId !== msg.senderId;
+                                    
                                     return (
-                                        <div key={msg._id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[75%] rounded-2xl px-5 py-3 shadow-sm ${
+                                        <div key={msg._id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                                            {!isMine && showHeader && (
+                                                <span className="text-[10px] font-black uppercase text-stone-300 tracking-widest mb-1.5 ml-2">
+                                                    {msg.senderId?.email?.split('@')[0] || 'Member'}
+                                                </span>
+                                            )}
+                                            <div className={`max-w-[85%] px-6 py-4 rounded-[2rem] shadow-sm text-sm leading-relaxed ${
                                                 isMine 
-                                                ? 'bg-text-brown text-white rounded-br-sm' 
-                                                : 'bg-white border border-stone-200 text-stone-800 rounded-bl-sm'
+                                                ? 'bg-deep-cocoa text-white rounded-tr-sm' 
+                                                : 'bg-white border border-stone-100 text-stone-700 rounded-tl-sm'
                                             }`}>
-                                                {!isMine && (
-                                                    <div className="text-xs font-bold mb-1 opacity-50">
-                                                        {msg.senderId?.email?.split('@')[0]}
-                                                    </div>
-                                                )}
-                                                <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                                                <div className={`text-[10px] mt-2 text-right ${isMine ? 'text-stone-300' : 'text-stone-400'}`}>
-                                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </div>
+                                                {msg.message}
                                             </div>
+                                            <span className="text-[9px] font-bold text-stone-300 mt-1.5 opacity-60">
+                                                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
                                         </div>
                                     );
                                 })
@@ -342,36 +414,42 @@ const OrderDetail = () => {
                             <div ref={messagesEndRef} />
                         </div>
 
-                        {/* Message Input */}
-                        <div className="p-4 bg-white border-t border-stone-200 shrink-0">
-                            <form onSubmit={handleSendMessage} className="flex gap-3">
+                        {/* Input Zone */}
+                        <div className="p-8 shrink-0">
+                            <form 
+                                onSubmit={handleSendMessage} 
+                                className={`flex items-center gap-4 bg-stone-50 p-2 rounded-[2rem] border border-stone-200 transition-all ${
+                                    isFailed || order.status === 'completed' ? 'opacity-50 grayscale pointer-events-none' : 'focus-within:border-deep-cocoa focus-within:bg-white'
+                                }`}
+                            >
+                                <button type="button" className="p-3 text-stone-400 hover:text-deep-cocoa transition">
+                                    <Paperclip size={20} />
+                                </button>
                                 <input 
                                     type="text" 
+                                    placeholder={order.status === 'completed' ? "Order closed" : "Message here..."}
+                                    className="flex-1 bg-transparent border-none text-sm font-medium focus:ring-0 placeholder:text-stone-300"
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
-                                    placeholder={order.status === 'completed' ? "Order completed. Chat is closed." : "Type your message..."}
-                                    disabled={order.status === 'completed' || order.status === 'cancelled' || order.status === 'rejected'}
-                                    className="flex-1 bg-stone-100 border-none rounded-full px-5 py-3 text-sm focus:ring-2 focus:ring-btn-brown focus:bg-white transition disabled:opacity-50"
                                 />
-                                <Button 
+                                <button 
                                     type="submit" 
-                                    disabled={!newMessage.trim() || sending || order.status === 'completed' || order.status === 'cancelled' || order.status === 'rejected'}
-                                    className="rounded-full w-12 h-12 p-0 flex items-center justify-center shrink-0"
+                                    disabled={!newMessage.trim() || sending}
+                                    className="bg-deep-cocoa text-white p-3.5 rounded-full shadow-lg shadow-stone-200 disabled:opacity-50 transition"
                                 >
-                                    <Send className="w-5 h-5 ml-[-2px]" />
-                                </Button>
+                                    <Send size={18} />
+                                </button>
                             </form>
                         </div>
                     </div>
-
                 </div>
             </div>
-            
+
             <ReviewModal 
                 isOpen={isReviewModalOpen}
                 onClose={() => setIsReviewModalOpen(false)}
                 onSubmit={handleSubmitReview}
-                artistName={order?.artistId?.email?.split('@')[0] || "the artist"}
+                artistName={order?.artistId?.fullName || "the artist"}
             />
         </div>
     );
