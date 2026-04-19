@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { AtSign, Lock } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
@@ -14,7 +14,27 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     
     const navigate = useNavigate();
+    const location = useLocation();
     const dispatch = useDispatch();
+    const { user, loading: authLoading } = useSelector(state => state.auth);
+
+    // Redirect already-authenticated users to their dashboard
+    useEffect(() => {
+        if (!authLoading && user) {
+            if (user.role === 'admin') navigate('/admin-dashboard', { replace: true });
+            else if (user.role === 'artist') navigate('/artist-dashboard', { replace: true });
+            else navigate('/client-dashboard', { replace: true });
+        }
+    }, [user, authLoading, navigate]);
+
+    // Show success message sent from ForgotPassword page
+    useEffect(() => {
+        if (location.state?.message) {
+            toast.success(location.state.message);
+            // Clear state so it doesn't re-show on back navigation
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state?.message]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

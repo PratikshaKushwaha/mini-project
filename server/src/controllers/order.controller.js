@@ -46,7 +46,7 @@ export const createOrder = asyncHandler(async (req, res) => {
         .populate("artistId", "fullName email")
         .populate("clientId", "fullName username");
 
-    // Unified alert via socket-alternative and strictly named email service
+    /** Unified alert via socket-alternative and strictly named email service */
     await createInternalNotification({
         recipient: artistId,
         sender: req.user._id,
@@ -127,6 +127,13 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 
     order.status = status;
     if (deliverableFiles) order.deliverableFiles = deliverableFiles;
+    
+    order.statusHistory.push({
+        status,
+        updatedBy: req.user._id,
+        note: `Status updated to ${status}`
+    });
+    
     await order.save();
 
     const recipient = req.user._id.toString() === order.clientId._id.toString() ? order.artistId._id : order.clientId._id;
@@ -164,6 +171,13 @@ export const setOrderPrice = asyncHandler(async (req, res) => {
 
     order.price = price;
     order.status = "price_quoted";
+
+    order.statusHistory.push({
+        status: "price_quoted",
+        updatedBy: req.user._id,
+        note: `Price quoted at ${price}`
+    });
+
     await order.save();
 
     return res.status(200).json(new ApiResponse(200, order, "Price quote finalized"));

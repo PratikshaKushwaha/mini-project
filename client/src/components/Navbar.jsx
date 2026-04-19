@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { Search, Bell, MessageSquare, Menu, X } from 'lucide-react';
 import { logoutUser } from '../store/authSlice';
+import { logoutUser_api } from '../services/api';
 import NotificationDropdown from './NotificationDropdown';
 
 const Navbar = () => {
@@ -12,6 +13,16 @@ const Navbar = () => {
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+
+    const handleLogout = async () => {
+        try {
+            await logoutUser_api(); // Invalidate server-side refresh token cookie
+        } catch(err) {
+            console.log("Error",err.message);
+         }
+        dispatch(logoutUser());
+        navigate('/');
+    };
 
     const handleSearch = (e) => {
         if (e.key === 'Enter' && searchQuery.trim()) {
@@ -112,7 +123,7 @@ const Navbar = () => {
                                     <img src={`https://api.dicebear.com/7.x/notionists/svg?seed=${user.email}`} alt="Profile" className="w-full h-full object-cover bg-cat-tan" />
                                 </Link>
                                 <button 
-                                    onClick={() => dispatch(logoutUser())}
+                                    onClick={handleLogout}
                                     className="text-sm font-medium text-stone-500 hover:text-red-600 transition"
                                 >
                                     Logout
@@ -195,7 +206,7 @@ const Navbar = () => {
                                     </div>
                                     <button 
                                         onClick={() => {
-                                            dispatch(logoutUser());
+                                            handleLogout();
                                             setMobileMenuOpen(false);
                                         }}
                                         className="text-sm font-bold text-red-600"

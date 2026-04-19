@@ -10,8 +10,7 @@ import {
     verifyOtp,
     resetPassword,
     logout,
-    logoutAll,
-    refreshToken
+    logoutAll
 } from "../controllers/auth.controller.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
 import { upload } from "../middleware/multer.middleware.js";
@@ -22,7 +21,6 @@ router.route("/register").post(registerUser);
 router.route("/login").post(loginUser);
 router.route("/logout").post(verifyJWT, logout);
 router.route("/logout-all").post(verifyJWT, logoutAll);
-router.route("/refresh-token").post(refreshToken);
 router.route("/me").get(verifyJWT, getCurrentUser);
 router.route("/me").put(
     verifyJWT,

@@ -25,6 +25,7 @@ import {
 import ReviewModal from '../../components/ReviewModal';
 import toast from 'react-hot-toast';
 import Button from '../../components/Button';
+import { io } from 'socket.io-client';
 
 /**
  * @component OrderDetail
@@ -68,14 +69,25 @@ const OrderDetail = () => {
         }
     };
 
-    /** @description Initializes polling for real-time discussion thread updates. */
+    /** @description Initializes socket for real-time discussion thread updates. */
     useEffect(() => {
         fetchOrderAndMessages();
-        const interval = setInterval(() => {
-            getOrderMessages(id).then(res => setMessages(res.data.data || [])).catch(console.error);
-        }, 15000);
         
-        return () => clearInterval(interval);
+        const ENDPOINT = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:5000';
+        const socket = io(ENDPOINT, { withCredentials: true });
+
+        socket.emit("joinOrder", id);
+
+        socket.on("receive_message", (newMsg) => {
+            setMessages((prev) => {
+                if (prev.find(m => m._id === newMsg._id)) return prev;
+                return [...prev, newMsg];
+            });
+        });
+        
+        return () => {
+            socket.disconnect();
+        };
     }, [id]);
 
     /** @description Auto-scrolls to the latest message in the thread. */
@@ -92,8 +104,7 @@ const OrderDetail = () => {
         try {
             await sendMessage(id, { message: newMessage });
             setNewMessage("");
-            const msgsRes = await getOrderMessages(id);
-            setMessages(msgsRes.data.data || []);
+            // Removed redundant getOrderMessages fetch since Socket.IO handles the update
         } catch (error) {
             toast.error("Message delivery failed");
         } finally {

@@ -19,7 +19,7 @@ const portfolioItemSchema = new Schema(
         },
         imageUrl: {
             type: String,
-            required: true // Cloudinary URL
+            required: true /** Cloudinary URL */
         },
         price: {
             type: Number,
@@ -27,7 +27,7 @@ const portfolioItemSchema = new Schema(
         },
         isAvailable: {
             type: Boolean,
-            default: true // Artwork is available for direct purchase
+            default: true /** Artwork is available for direct purchase */
         },
         likes: [{
             type: Schema.Types.ObjectId,
@@ -42,7 +42,7 @@ const portfolioItemSchema = new Schema(
     { timestamps: true }
 );
 
-// Full-text search on artwork title and description
+/** Full-text search on artwork title and description */
 portfolioItemSchema.index({ title: "text", description: "text" });
 
 export const PortfolioItem = mongoose.model("PortfolioItem", portfolioItemSchema);

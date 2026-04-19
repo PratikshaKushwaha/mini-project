@@ -2,14 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getArtistOrders, updateOrderStatus } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import Button from '../Button';
-import { 
-    Clock, 
-    CheckCircle2, 
-    AlertCircle, 
-    MessageSquare, 
-    User,
-    Calendar
-} from 'lucide-react';
+import { Clock, CheckCircle2,  AlertCircle,  MessageSquare, Calendar} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 /**
@@ -184,7 +177,7 @@ const ArtistOrders = () => {
                                 </div>
                                 <div className="flex flex-col items-end">
                                     <span className="text-[10px] font-black uppercase text-stone-400 tracking-widest">Est. Quote</span>
-                                    <span className="text-lg font-black text-deep-cocoa font-playfair">₹{order.price || 'TBD'}</span>
+                                    <span className="text-lg font-black text-deep-cocoa font-playfair">₹{order.price || 500}</span>
                                 </div>
                             </div>
                         </div>

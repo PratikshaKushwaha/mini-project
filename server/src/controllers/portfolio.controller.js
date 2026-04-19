@@ -34,7 +34,7 @@ export const addPortfolioItem = asyncHandler(async (req, res) => {
         price: startingPrice || 0
     });
 
-    // Confirmation via strictly named email service
+    /** Confirmation via strictly named email service */
     await sendArtworkUploadConfirmation(req.user.email, title);
 
     return res.status(201).json(new ApiResponse(201, item, "Portfolio entry published"));

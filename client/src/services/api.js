@@ -29,31 +29,13 @@ api.interceptors.request.use((config) => {
 
 /** 
  * @interceptor Response
- * @description Implements silent authentication refresh on 401 Unauthorized errors.
- * Preserves the original request and retries it once the access token is rotated.
+ * @description Handles basic response interception. Refresh token logic has been removed.
  */
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    if (!originalRequest || originalRequest._retry) return Promise.reject(error);
-
+  (error) => {
     if (error.response?.status === 401) {
-      originalRequest._retry = true;
-      try {
-        const refreshRes = await api.post('/auth/refresh-token');
-        const { accessToken } = refreshRes.data.data;
-        if (!accessToken) {
-          store.dispatch(logoutUser());
-          return Promise.reject(error);
-        }
-        store.dispatch(setCredentials({ user: store.getState().auth.user, accessToken }));
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        return api(originalRequest);
-      } catch {
-        store.dispatch(logoutUser());
-        return Promise.reject(error);
-      }
+      store.dispatch(logoutUser());
     }
     return Promise.reject(error);
   }
@@ -70,7 +52,6 @@ export const googleLogin = (token, role) => api.post('/auth/google', { token, ro
 export const completeGoogleProfile = (data) => api.post('/auth/complete-profile', data);
 export const getCurrentUser = () => api.get('/auth/me');
 export const logoutUser_api = () => api.post('/auth/logout');
-export const refreshToken = () => api.post('/auth/refresh-token');
 export const updateProfile = (data) => {
   if (data instanceof FormData) {
     return api.put('/auth/me', data, { headers: { 'Content-Type': 'multipart/form-data' } });

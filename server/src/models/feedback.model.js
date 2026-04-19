@@ -20,7 +20,7 @@ const feedbackSchema = new Schema(
             required: true,
             index: true
         },
-        // Optional: link to the completed order that unlocks feedback
+        /** Optional: link to the completed order that unlocks feedback */
         orderId: {
             type: Schema.Types.ObjectId,
             ref: "CommissionOrder",
@@ -45,7 +45,7 @@ const feedbackSchema = new Schema(
     { timestamps: true }
 );
 
-// One feedback per client per artwork
+/** One feedback per client per artwork */
 feedbackSchema.index({ portfolioItemId: 1, clientId: 1 }, { unique: true });
 
 export const Feedback = mongoose.model("Feedback", feedbackSchema);

@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import api, { createOrder, createCheckoutSession } from '../../services/api';
 import Button from '../../components/Button';
-import Input from '../../components/Input';
 import { ShieldCheck, Clock, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { logoutUser } from '../../store/authSlice';
+import { logoutUser_api } from '../../services/api';
 import { useNavigate, Link } from 'react-router-dom';
 import Button from '../../components/Button';
 import ClientOrders from '../../components/dashboard/ClientOrders';
@@ -20,16 +21,27 @@ import {
  * @returns {JSX.Element} The rendered Client Dashboard.
  */
 const ClientDashboard = () => {
-    const { user } = useSelector((state) => state.auth);
+    const { user, loading: authLoading } = useSelector((state) => state.auth);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('orders');
 
     /** @description Dispatches logout action and redirects to login page. */
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            await logoutUser_api();
+        } catch { /* silent */ }
         dispatch(logoutUser());
         navigate('/login');
     };
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#fdfaf7]">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-deep-cocoa"></div>
+            </div>
+        );
+    }
 
     if (!user || user.role !== 'client') {
         return (

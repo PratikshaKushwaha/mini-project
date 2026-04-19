@@ -246,59 +246,35 @@ const Community = () => {
     };
     return (
         <div className="bg-bg-cream min-h-screen pb-20">
-            {/* Hero Banner */}
-            <section className="bg-gradient-to-br from-cat-mocha/30 via-bg-cream to-cat-tan/20 pt-14 pb-16 border-b border-stone-200/60">
-                <div className="max-w-[1400px] mx-auto px-4 sm:px-6 xl:px-8 text-center">
-                    <div className="inline-flex items-center gap-2 bg-white/70 backdrop-blur-sm border border-stone-200/60 text-text-brown text-xs font-semibold px-4 py-1.5 rounded-full mb-6">
-                        <Users className="w-3.5 h-3.5" /> ArtisanConnect Community
+            {/* Minimal Header */}
+            <section className="bg-white border-b border-stone-200/60 sticky top-0 z-10 shadow-sm">
+                <div className="max-w-3xl mx-auto px-4 sm:px-6 xl:px-8 flex items-center justify-between py-4">
+                    <div>
+                        <h1 className="text-xl font-playfair font-bold text-text-brown flex items-center gap-2">
+                            <Users className="w-5 h-5 text-text-brown" /> ArtisanConnect
+                        </h1>
+                        <p className="text-xs text-stone-500">The community feed for artists and clients.</p>
                     </div>
-                    <h1 className="text-5xl sm:text-6xl font-playfair font-bold text-text-brown leading-tight mb-4">
-                        A Space for
-                        <br />
-                        Creators & Clients
-                    </h1>
-                    <p className="text-stone-600 text-lg max-w-xl mx-auto mb-8">
-                        Updates, guides, and conversations from the ArtisanConnect team and
-                        community.
-                    </p>
-                    <Link
-                        to="/register"
-                        className="inline-flex items-center gap-2 bg-text-brown text-white px-7 py-3 rounded-full font-medium hover:bg-opacity-90 transition"
-                    >
-                        Join the Community <ChevronRight className="w-4 h-4" />
-                    </Link>
-                </div>
-            </section>
-
-            {/* Stats Row */}
-            <section className="max-w-[1400px] mx-auto px-4 sm:px-6 xl:px-8 -mt-6">
-                <div className="grid grid-cols-3 gap-4">
-                    {[
-                        { icon: Users, label: "Members", value: "1,200+" },
-                        { icon: Sparkles, label: "Artists", value: "340+" },
-                        { icon: BookOpen, label: "Posts", value: "80+" },
-                    ].map(({ icon: Icon, label, value }) => (
-                        <div
-                            key={label}
-                            className="bg-white rounded-2xl p-5 shadow-sm text-center"
-                        >
-                            <Icon className="w-5 h-5 text-muted-taupe mx-auto mb-2" />
-                            <p className="text-xl font-bold text-text-brown">{value}</p>
-                            <p className="text-xs text-stone-500">{label}</p>
-                        </div>
-                    ))}
                 </div>
             </section>
 
             {/* Posts Feed */}
-            <section className="max-w-3xl mx-auto px-4 sm:px-6 xl:px-8 mt-12 space-y-8">
-                <div className="flex justify-between items-end mb-6">
-                    <h2 className="text-2xl font-semibold text-text-brown">Latest Feed</h2>
+            <section className="max-w-3xl mx-auto px-4 sm:px-6 xl:px-8 mt-8 space-y-8">
+                
+                {/* Create Post Prompt */}
+                <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-stone-200 flex items-center gap-4 cursor-text transition-shadow hover:shadow-md" onClick={handleCreatePostClick}>
+                    <img
+                        src={`https://api.dicebear.com/7.x/notionists/svg?seed=${user?.email || 'anon'}`}
+                        alt="You"
+                        className="w-12 h-12 rounded-full border border-stone-100 bg-stone-50 object-cover"
+                    />
+                    <div className="flex-1 bg-stone-100 rounded-full px-5 py-3 text-stone-500 text-sm font-medium hover:bg-stone-200 transition">
+                        What's on your mind? Share your art journey...
+                    </div>
                     <button 
-                        onClick={handleCreatePostClick}
-                        className="flex items-center gap-2 bg-text-brown text-white px-5 py-2.5 rounded-full text-sm font-medium hover:bg-opacity-90 shadow-sm transition"
+                        className="hidden sm:flex items-center gap-2 bg-text-brown text-white px-5 py-2.5 rounded-full text-sm font-medium hover:bg-opacity-90 shadow-sm transition"
                     >
-                        <PlusCircle className="w-5 h-5" /> Start Discussion
+                        <PlusCircle className="w-4 h-4" /> Post
                     </button>
                 </div>
 

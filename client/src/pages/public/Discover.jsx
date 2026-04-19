@@ -197,7 +197,11 @@ const Discover = () => {
                                                 {profile.artistId?.bannerImage ? (
                                                     <img src={profile.artistId.bannerImage} alt="Banner" className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <div className="w-full h-full bg-gradient-to-r from-stone-200 to-stone-300"></div>
+                                                    <img 
+                                                        src={profile.artistId?.profileImage || `https://api.dicebear.com/7.x/notionists/svg?seed=${profile.artistId?.email}`} 
+                                                        alt="Fallback Banner" 
+                                                        className="w-full h-full object-cover opacity-60 blur-sm" 
+                                                    />
                                                 )}
                                                 <div className="absolute -bottom-10 left-6 w-20 h-20 rounded-2xl border-4 border-white overflow-hidden shadow-md bg-white">
                                                     <img 
@@ -246,7 +250,7 @@ const Discover = () => {
                                                 <div className="mt-auto flex items-center justify-between pt-4 border-t border-stone-100">
                                                     <div className="text-sm">
                                                         <span className="text-stone-400">Starts at </span>
-                                                        <span className="font-bold text-deep-cocoa">₹{profile.startingPrice || 'TBD'}</span>
+                                                        <span className="font-bold text-deep-cocoa">₹{profile.startingPrice || 500}</span>
                                                     </div>
                                                     <Link to={`/artists/${profile.artistId?._id}`}>
                                                         <Button variant="outline" className="text-xs py-2 px-4 h-auto rounded-xl bg-white hover:bg-stone-50">View Profile</Button>

@@ -79,7 +79,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/artists", artistRoutes);
 app.use("/api/v1/portfolio", portfolioRoutes);
 app.use("/api/v1/orders", orderRoutes);
-app.use("/api/v1/orders/:id/messages", messageRoutes);
+app.use("/api/v1/orders/:orderId/messages", messageRoutes);
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/reviews", reviewRoutes);

@@ -44,7 +44,7 @@ const DashboardOverview = () => {
                 const completedOrders = orders.filter(o => o.status === 'completed').length;
                 const totalEarnings = orders
                     .filter(o => o.status === 'completed')
-                    .reduce((sum, o) => sum + (o.price || 0), 0);
+                    .reduce((sum, o) => sum + (Number(o.price) || 0), 0);
                 
                 const totalAttempted = orders.filter(o => ['completed', 'rejected', 'cancelled'].includes(o.status)).length;
                 const successRate = totalAttempted > 0 ? (completedOrders / totalAttempted) * 100 : 100;

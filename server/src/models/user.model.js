@@ -69,9 +69,6 @@ const userSchema = new Schema(
         },
         resetPasswordOtpExpiry: {
             type: Date
-        },
-        refreshToken: {
-            type: String
         }
     },
     { timestamps: true }
@@ -114,16 +111,5 @@ userSchema.methods.generateAccessToken = function (sessionId) {
     );
 };
 
-/**
- * @description Issues a long-lived Refresh Token for session persistence.
- * @returns {string} JWT Refresh Token.
- */
-userSchema.methods.generateRefreshToken = function () {
-    return jwt.sign(
-        { _id: this._id },
-        process.env.REFRESH_TOKEN_SECRET,
-        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY }
-    );
-};
 
 export const User = mongoose.model("User", userSchema);

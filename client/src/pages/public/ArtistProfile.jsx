@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { Globe, Instagram, Twitter, MapPin } from 'lucide-react';
 import Button from '../../components/Button';
@@ -14,15 +14,48 @@ const ArtistProfile = () => {
     const [portfolio, setPortfolio] = useState([]);
     const [reviewState, setReviewState] = useState({ reviews: [], stats: { avgRating: 0, totalReviews: 0 } });
     const [loading, setLoading] = useState(true);
+    const [purchaseLoading, setPurchaseLoading] = useState(false);
     const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
     const { user } = useSelector(state => state.auth);
+    const navigate = useNavigate();
+
+    const handleBuyItem = async (item) => {
+        if (!user) {
+            toast.error("Please login to purchase artwork.");
+            return;
+        }
+
+        setPurchaseLoading(true);
+        try {
+            const deadlineDate = new Date();
+            deadlineDate.setDate(deadlineDate.getDate() + 7);
+            
+            const res = await api.post('/orders', {
+                artistId: id,
+                title: `Purchase Artwork: ${item.title}`,
+                description: `I would like to purchase the available artwork: ${item.title}\n\nDescription: ${item.description}`,
+                deadline: deadlineDate.toISOString().split('T')[0],
+                orderType: 'direct',
+                price: item.price,
+                portfolioItemId: item._id
+            });
+            
+            toast.success("Purchase request created successfully!");
+            navigate(`/orders/${res.data.data._id}`);
+        } catch(err) {
+            toast.error(err.response?.data?.message || "Failed to submit purchase request.");
+        } finally {
+            setPurchaseLoading(false);
+        }
+    };
 
     useEffect(() => {
         const fetchArtistData = async () => {
             try {
                 // Fetch profile
                 const profileRes = await api.get(`/artists/${id}`);
-                setProfile(profileRes.data.data);
+                const { artist, profile: artistProfile } = profileRes.data.data;
+                setProfile({ ...(artistProfile || {}), artistId: artist });
 
                 // Fetch portfolio/artworks
                 const portfolioRes = await api.get(`/portfolio/${id}`);
@@ -109,7 +142,7 @@ const ArtistProfile = () => {
                                    </div>
                                 )}
                                 <div className="flex items-center gap-1 text-orange-400 font-bold ml-auto md:ml-0 md:border-l md:border-stone-200 md:pl-4">
-                                    ★ {reviewState.stats.avgRating?.toFixed(1) || '0.0'} <span className="text-stone-400 font-normal">({reviewState.stats.totalReviews || 0} reviews)</span>
+                                    ★ {reviewState?.stats?.avgRating?.toFixed(1) || '0.0'} <span className="text-stone-400 font-normal">({reviewState?.stats?.totalReviews || 0} reviews)</span>
                                 </div>
                             </div>
 
@@ -168,16 +201,16 @@ const ArtistProfile = () => {
                 <div>
                     <h2 className="text-3xl font-playfair font-bold text-text-brown mb-8 flex items-center justify-between">
                         Artwork Showcase
-                        <span className="text-sm font-medium text-stone-500 font-inter">{portfolio.length} posts</span>
+                        <span className="text-sm font-medium text-stone-500 font-inter">{portfolio?.length || 0} posts</span>
                     </h2>
 
-                    {portfolio.length === 0 ? (
+                    {(!portfolio || portfolio.length === 0) ? (
                         <div className="text-center py-20 bg-stone-50 rounded-2xl border border-stone-200">
                             <p className="text-muted-taupe text-lg">No artwork posted yet.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {portfolio.map(item => (
+                            {(portfolio || []).map(item => (
                                 <div key={item._id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-stone-100 group">
                                     <div className="h-64 relative overflow-hidden bg-stone-100">
                                         <img 
@@ -191,9 +224,20 @@ const ArtistProfile = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="p-5">
-                                        <h3 className="text-xl font-bold text-deep-cocoa mb-2">{item.title}</h3>
-                                        <p className="text-stone-600 text-sm line-clamp-2">{item.description}</p>
+                                    <div className="p-5 flex flex-col justify-between" style={{ minHeight: '140px' }}>
+                                        <div>
+                                            <h3 className="text-xl font-bold text-deep-cocoa mb-2">{item.title}</h3>
+                                            <p className="text-stone-600 text-sm line-clamp-2">{item.description}</p>
+                                        </div>
+                                        {item.price > 0 && item.isAvailableForSale !== false && (
+                                            <Button 
+                                                onClick={() => handleBuyItem(item)}
+                                                disabled={purchaseLoading}
+                                                className="w-full mt-4"
+                                            >
+                                                Purchase Artwork
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -205,16 +249,16 @@ const ArtistProfile = () => {
                 <div className="mt-20">
                     <h2 className="text-3xl font-playfair font-bold text-text-brown mb-8 flex items-center justify-between">
                         Reviews & Feedback
-                        <span className="text-sm font-medium text-stone-500 font-inter">{reviewState.reviews.length} reviews</span>
+                        <span className="text-sm font-medium text-stone-500 font-inter">{reviewState?.reviews?.length || 0} reviews</span>
                     </h2>
 
-                    {reviewState.reviews.length === 0 ? (
+                    {!reviewState?.reviews?.length ? (
                         <div className="text-center py-20 bg-stone-50 rounded-2xl border border-stone-200">
                             <p className="text-muted-taupe text-lg">No reviews yet.</p>
                         </div>
                     ) : (
                         <div className="space-y-6">
-                            {reviewState.reviews.map(review => (
+                            {(reviewState?.reviews || []).map(review => (
                                 <div key={review._id} className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex gap-4">
                                     <div className="w-12 h-12 rounded-full overflow-hidden bg-stone-100 shrink-0 border border-stone-200">
                                         <img src={review.clientId?.profileImage || `https://api.dicebear.com/7.x/notionists/svg?seed=${review.clientId?.email}`} alt="User" />

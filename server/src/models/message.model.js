@@ -18,7 +18,7 @@ const messageSchema = new Schema(
             type: String,
             trim: true
         },
-        // Cloudinary URL for image attachments shared in chat
+        /** Cloudinary URL for image attachments shared in chat */
         imageUrl: {
             type: String,
             default: null
@@ -30,6 +30,8 @@ const messageSchema = new Schema(
     { timestamps: true }
 );
 
-// At least one of message or imageUrl must be present (validated in controller)
+/** At least one of message or imageUrl must be present (validated in controller) */
+
+messageSchema.index({ orderId: 1, createdAt: 1 });
 
 export const Message = mongoose.model("Message", messageSchema);

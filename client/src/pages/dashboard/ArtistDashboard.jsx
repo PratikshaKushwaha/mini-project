@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { logoutUser } from '../../store/authSlice';
+import { logoutUser_api } from '../../services/api';
 import { useNavigate, Link } from 'react-router-dom';
 import Button from '../../components/Button';
 import DashboardOverview from '../../components/dashboard/DashboardOverview';
@@ -25,16 +26,27 @@ import {
  * @returns {JSX.Element} The rendered Artist Dashboard.
  */
 const ArtistDashboard = () => {
-    const { user } = useSelector((state) => state.auth);
+    const { user, loading: authLoading } = useSelector((state) => state.auth);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('overview');
 
     /** @description Dispatches logout action and redirects to login page. */
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            await logoutUser_api();
+        } catch { /* silent */ }
         dispatch(logoutUser());
         navigate('/login');
     };
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#fdfaf7]">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-deep-cocoa"></div>
+            </div>
+        );
+    }
 
     if (!user || user.role !== 'artist') {
         return (
@@ -84,7 +96,7 @@ const ArtistDashboard = () => {
                     <div className="flex items-center gap-4 bg-stone-50 p-4 rounded-2xl border border-stone-100">
                         <div className="w-12 h-12 rounded-xl overflow-hidden bg-stone-200 border border-stone-200 shadow-sm shrink-0">
                             <img 
-                                src={user.profileImage || `https://api.dicebear.com/7.x/notionists/svg?seed=${user.email}`} 
+                                src={ `https://api.dicebear.com/7.x/notionists/svg?seed=${user.email}`} 
                                 alt="Avatar" 
                                 className="w-full h-full object-cover"
                             />

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { Mail, Lock, User, AtSign } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
@@ -23,6 +23,16 @@ const Register = () => {
     
     const navigate = useNavigate();
     const dispatch = useDispatch();
+    const { user, loading: authLoading } = useSelector(state => state.auth);
+
+    // Redirect already-authenticated users away from register page
+    useEffect(() => {
+        if (!authLoading && user) {
+            if (user.role === 'admin') navigate('/admin-dashboard', { replace: true });
+            else if (user.role === 'artist') navigate('/artist-dashboard', { replace: true });
+            else navigate('/client-dashboard', { replace: true });
+        }
+    }, [user, authLoading, navigate]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });

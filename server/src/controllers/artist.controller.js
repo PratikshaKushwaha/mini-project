@@ -53,7 +53,7 @@ export const getArtistProfile = asyncHandler(async (req, res) => {
     const profile = await ArtistProfile.findOne({ artistId });
     const portfolio = await PortfolioItem.find({ artistId }).sort({ createdAt: -1 });
     
-    // Aggregate review stats
+    /** Aggregate review stats */
     const reviews = await Review.find({ artistId });
     const rating = reviews.length > 0 ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1) : 0;
 

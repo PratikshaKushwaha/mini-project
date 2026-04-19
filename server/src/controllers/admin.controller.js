@@ -7,6 +7,11 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+/**
+ * @description Retrieves system-wide statistics for the admin dashboard.
+ * @route GET /api/v1/admin/stats
+ * @access Private/Admin
+ */
 export const getSystemStats = asyncHandler(async (req, res) => {
     const [userCount, artistCount, orderCount, categoryCount, revenue] = await Promise.all([
         User.countDocuments(),
@@ -15,7 +20,7 @@ export const getSystemStats = asyncHandler(async (req, res) => {
         Category.countDocuments(),
         CommissionOrder.aggregate([
             { $match: { status: "completed" } },
-            { $group: { _id: null, total: { $sum: "$price" } } }
+            { $group: { _id: null, total: { $sum: { $toDouble: { $ifNull: ["$price", 0] } } } } }
         ])
     ]);
 
@@ -31,6 +36,11 @@ export const getSystemStats = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, stats, "System stats fetched"));
 });
 
+/**
+ * @description Retrieves a paginated list of all users, with optional search and role filtering.
+ * @route GET /api/v1/admin/users
+ * @access Private/Admin
+ */
 export const getAllUsers = asyncHandler(async (req, res) => {
     const { search, role, page = 1, limit = 10 } = req.query;
     const query = {};
@@ -60,8 +70,13 @@ export const getAllUsers = asyncHandler(async (req, res) => {
     }, "Users list fetched"));
 });
 
+/**
+ * @description Updates the role of a specific user.
+ * @route PATCH /api/v1/admin/users/:userId/role
+ * @access Private/Admin
+ */
 export const updateUserRole = asyncHandler(async (req, res) => {
-    const { userId } = req.params; // comes from route: /admin/users/:userId/role
+    const { userId } = req.params; /** comes from route: /admin/users/:userId/role */
     const { role } = req.body;
     
     if (!["client", "artist", "admin"].includes(role)) {
@@ -75,7 +90,7 @@ export const updateUserRole = asyncHandler(async (req, res) => {
     user.role = role;
     await user.save();
 
-    // Log admin action
+    /** Log admin action */
     await AdminLog.create({
         adminId: req.user._id,
         action: "UPDATE_USER_ROLE",
@@ -86,25 +101,30 @@ export const updateUserRole = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, user, "User role updated successfully"));
 });
 
+/**
+ * @description Deletes a specific user and cascades deletion to their artist profile if applicable.
+ * @route DELETE /api/v1/admin/users/:userId
+ * @access Private/Admin
+ */
 export const deleteUser = asyncHandler(async (req, res) => {
     const { userId } = req.params;
 
     const user = await User.findById(userId);
     if (!user) throw new ApiError(404, "User not found");
 
-    // Safety: never allow deleting admin accounts through this endpoint
+    /** Safety: never allow deleting admin accounts through this endpoint */
     if (user.role === "admin") {
         throw new ApiError(403, "Admin accounts cannot be deleted through this interface.");
     }
 
-    // Cascade: remove artist profile if applicable
+    /** Cascade: remove artist profile if applicable */
     if (user.role === "artist") {
         await ArtistProfile.findOneAndDelete({ userId });
     }
 
     await User.findByIdAndDelete(userId);
 
-    // Log admin action
+    /** Log admin action */
     await AdminLog.create({
         adminId: req.user._id,
         action: "DELETE_USER",
